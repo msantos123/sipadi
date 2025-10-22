@@ -1,157 +1,158 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { type BreadcrumbItem } from '@/types';
+import AppLayout from '@/layouts/AppLayout.vue'
+import { useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import type { Nacionalidad, Municipio, Departamento } from '@/types'
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Usuarios', href: '/usuarios' },
-    { title: 'Crear Usuario', href: '#' },
-];
+const props = defineProps<{ 
+    nacionalidades: Nacionalidad[], 
+    departamentos: Departamento[], 
+    municipios: Municipio[]
+}>()
 
 const form = useForm({
-  apellido_paterno: '',
-  apellido_materno: '',
-  nombres: '',
-  ci: '',
-  celular: '',
-  cargo: '',
-  email: '',
-  password: '',
-  password_confirmation: '',
-});
+    apellido_paterno: '',
+    apellido_materno: '',
+    nombres: '',
+    ci: '',
+    celular: '',
+    nacionalidad_id: null,
+    departamento_id: null,
+    municipio_id: null,
+    email: '',
+    password: '',
+    password_confirmation: '',
+})
 
-const submit = () => {
-  form.post('/usuarios', {
-    onSuccess: () => {
-      form.reset();
-    },
-  });
-};
+const isBoliviano = computed(() => {
+  if (!form.nacionalidad_id) return false
+  const nacionalidad = props.nacionalidades.find(n => n.id === form.nacionalidad_id)
+  return nacionalidad?.pais === 'Bolivia'
+})
+
+const filteredMunicipios = computed(() => {
+    if (!form.departamento_id) {
+        return []
+    }
+    return props.municipios.filter(m => m.departamento_id === form.departamento_id)
+})
+
+function submit() {
+    form.post(route('usuarios.store'))
+}
 </script>
 
 <template>
-    <Head title="Crear Usuario" />
-    <AppLayout :breadcrumbs="breadcrumbs">
-    <div class="flex flex-1 flex-col gap-4 rounded-xl p-4">
-      <h1 class="text-2xl font-bold">Crear un Nuevo Usuario</h1>
-      <form @submit.prevent="submit" class="space-y-6 max-w-lg">
+    <AppLayout>
+        <template #header>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Crear Usuario</h2>
+        </template>
 
-        <div class="space-y-2">
-            <Label for="nombres">Nombres</Label>
-            <Input
-                id="nombres"
-                v-model="form.nombres"
-                type="text"
-                placeholder="Nombres del usuario"
-                required
-            />
-            <p v-if="form.errors.nombres" class="text-sm text-red-500 mt-1">{{ form.errors.nombres }}</p>
-        </div>
+        <form @submit.prevent="submit">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Registrar Nuevo Usuario</CardTitle>
+                </CardHeader>
+                <CardContent class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <div class="space-y-2">
+                        <Label for="apellido_paterno">Apellido Paterno</Label>
+                        <Input id="apellido_paterno" v-model="form.apellido_paterno" type="text" required />
+                        <div v-if="form.errors.apellido_paterno" class="text-sm text-red-500">{{ form.errors.apellido_paterno }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="apellido_materno">Apellido Materno</Label>
+                        <Input id="apellido_materno" v-model="form.apellido_materno" type="text" />
+                        <div v-if="form.errors.apellido_materno" class="text-sm text-red-500">{{ form.errors.apellido_materno }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="nombres">Nombres</Label>
+                        <Input id="nombres" v-model="form.nombres" type="text" required />
+                        <div v-if="form.errors.nombres" class="text-sm text-red-500">{{ form.errors.nombres }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="ci">CI</Label>
+                        <Input id="ci" v-model="form.ci" type="text" required />
+                        <div v-if="form.errors.ci" class="text-sm text-red-500">{{ form.errors.ci }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="celular">Celular</Label>
+                        <Input id="celular" v-model="form.celular" type="text" />
+                        <div v-if="form.errors.celular" class="text-sm text-red-500">{{ form.errors.celular }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="nacionalidad">Nacionalidad</Label>
+                        <Select v-model="form.nacionalidad_id">
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccione nacionalidad" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="nac in nacionalidades" :key="nac.id" :value="nac.id">
+                                    {{ nac.pais }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div v-if="form.errors.nacionalidad_id" class="text-sm text-red-500">{{ form.errors.nacionalidad_id }}</div>
+                    </div>
 
-        <div class="space-y-2">
-            <Label for="apellido_paterno">Apellido Paterno</Label>
-            <Input
-                id="apellido_paterno"
-                v-model="form.apellido_paterno"
-                type="text"
-                placeholder="Apellido paterno"
-                required
-            />
-            <p v-if="form.errors.apellido_paterno" class="text-sm text-red-500 mt-1">{{ form.errors.apellido_paterno }}</p>
-        </div>
+                    <template v-if="isBoliviano">
+                        <div class="space-y-2">
+                            <Label for="departamento">Departamento</Label>
+                            <Select v-model="form.departamento_id">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione departamento" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="dep in departamentos" :key="dep.id" :value="dep.id">
+                                        {{ dep.nombre }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div v-if="form.errors.departamento_id" class="text-sm text-red-500">{{ form.errors.departamento_id }}</div>
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="municipio">Municipio</Label>
+                            <Select v-model="form.municipio_id" :disabled="!form.departamento_id">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione municipio" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="mun in filteredMunicipios" :key="mun.id" :value="mun.id">
+                                        {{ mun.nombre_municipio }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div v-if="form.errors.municipio_id" class="text-sm text-red-500">{{ form.errors.municipio_id }}</div>
+                        </div>
+                    </template>
 
-        <div class="space-y-2">
-            <Label for="apellido_materno">Apellido Materno</Label>
-            <Input
-                id="apellido_materno"
-                v-model="form.apellido_materno"
-                type="text"
-                placeholder="Apellido materno"
-            />
-            <p v-if="form.errors.apellido_materno" class="text-sm text-red-500 mt-1">{{ form.errors.apellido_materno }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="ci">Carnet de Identidad (CI)</Label>
-            <Input
-                id="ci"
-                v-model="form.ci"
-                type="text"
-                placeholder="Número de carnet"
-                required
-            />
-            <p v-if="form.errors.ci" class="text-sm text-red-500 mt-1">{{ form.errors.ci }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="celular">Celular</Label>
-            <Input
-                id="celular"
-                v-model="form.celular"
-                type="text"
-                placeholder="Número de celular"
-            />
-            <p v-if="form.errors.celular" class="text-sm text-red-500 mt-1">{{ form.errors.celular }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="cargo">Cargo</Label>
-            <Input
-                id="cargo"
-                v-model="form.cargo"
-                type="text"
-                placeholder="Cargo del usuario"
-                required
-            />
-            <p v-if="form.errors.cargo" class="text-sm text-red-500 mt-1">{{ form.errors.cargo }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="email">Email</Label>
-            <Input
-                id="email"
-                v-model="form.email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                required
-            />
-            <p v-if="form.errors.email" class="text-sm text-red-500 mt-1">{{ form.errors.email }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="password">Contraseña</Label>
-            <Input
-                id="password"
-                v-model="form.password"
-                type="password"
-                placeholder="Contraseña"
-                required
-            />
-            <p v-if="form.errors.password" class="text-sm text-red-500 mt-1">{{ form.errors.password }}</p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="password_confirmation">Confirmar Contraseña</Label>
-            <Input
-                id="password_confirmation"
-                v-model="form.password_confirmation"
-                type="password"
-                placeholder="Repita la contraseña"
-                required
-            />
-        </div>
-
-        <div class="flex items-center gap-4">
-          <Button type="submit" :disabled="form.processing" class="bg-indigo-500 text-white hover:bg-indigo-700">
-            <span v-if="form.processing">Guardando...</span>
-            <span v-else>Guardar</span>
-          </Button>
-          <Button as="a" href="/usuarios" variant="outline">Cancelar</Button>
-        </div>
-      </form>
-    </div>
-  </AppLayout>
+                    <div class="space-y-2">
+                        <Label for="email">Email</Label>
+                        <Input id="email" v-model="form.email" type="email" required />
+                        <div v-if="form.errors.email" class="text-sm text-red-500">{{ form.errors.email }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="password">Contraseña</Label>
+                        <Input id="password" v-model="form.password" type="password" required />
+                        <div v-if="form.errors.password" class="text-sm text-red-500">{{ form.errors.password }}</div>
+                    </div>
+                    <div class="space-y-2">
+                        <Label for="password_confirmation">Confirmar Contraseña</Label>
+                        <Input id="password_confirmation" v-model="form.password_confirmation" type="password" required />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button type="submit" :disabled="form.processing">
+                        {{ form.processing ? 'Guardando...' : 'Crear Usuario' }}
+                    </Button>
+                </CardFooter>
+            </Card>
+        </form>
+    </AppLayout>
 </template>

@@ -18,7 +18,14 @@ return new class extends Migration
             $table->string('nombres', 100);
             $table->string('ci', 20)->unique();
             $table->string('celular', 15)->nullable();
-            $table->string('cargo', 50);
+
+            // Para nacionalidad (relación con tabla de nacionalidades)
+            $table->foreignId('nacionalidad_id')->nullable()->constrained('nacionalidades');
+
+            // Para bolivianos: departamento y municipio
+            $table->foreignId('departamento_id')->nullable()->constrained('departamentos');
+            $table->foreignId('municipio_id')->nullable()->constrained('municipios');
+
             $table->enum('estado', ['activo', 'inactivo'])->default('activo');
             $table->string('email', 100)->unique();
             $table->timestamp('email_verified_at')->nullable();

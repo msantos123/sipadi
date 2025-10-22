@@ -27,83 +27,130 @@ class RolesYPermisosSeeder extends Seeder
         Permission::create(['name' => 'ver-reportes-especificos']);
 
         // Crear Roles y Asignar Permisos
-        $roleRepresentante = Role::create(['name' => 'Representante Legal']);
-        $roleRepresentante->givePermissionTo('gestionar-empleados');
+        $roleAdmin = Role::create(['name' => 'admin']);
+        $roleAdmin->givePermissionTo([
+            'gestionar-usuarios',
+            'gestionar-empleados',
+            'aprobar-parte-diario',
+            'registrar-parte-diario',
+            'ver-reportes-nacionales',
+            'ver-reportes-especificos'
+        ]);
 
-        $roleOperador = Role::create(['name' => 'Operador']);
-        $roleOperador->givePermissionTo('registrar-parte-diario');
-
-        $roleGAD = Role::create(['name' => 'GAD']);
-        $roleGAD->givePermissionTo('aprobar-parte-diario');
-
-        $roleViceministerio = Role::create(['name' => 'Viceministerio']);
-        $roleViceministerio->givePermissionTo([
+        $roleNacional = Role::create(['name' => 'Nacional']);
+        $roleNacional->givePermissionTo([
             'gestionar-usuarios',
             'ver-reportes-nacionales',
             'ver-reportes-especificos'
         ]);
 
+        $roleDepartamental = Role::create(['name' => 'Departamental']);
+        $roleDepartamental->givePermissionTo('aprobar-parte-diario');
+
+        $rolePrestador = Role::create(['name' => 'Prestador']);
+        $rolePrestador->givePermissionTo('gestionar-empleados');
+
+        $rolePrestadoremp = Role::create(['name' => 'Prestadoremp']);
+        $rolePrestadoremp->givePermissionTo('registrar-parte-diario');
+
         $roleInstitucion = Role::create(['name' => 'Institucion']);
         $roleInstitucion->givePermissionTo('ver-reportes-especificos');
 
-        // Crear Usuarios y Asignar Roles
-        $userRepresentante = User::create([
-            'nombres' => 'Usuario Representante',
-            'apellido_paterno' => 'Legal',
-            'apellido_materno' => 'Representante',
+                // 1. Usuario admin
+        $userAdmin = User::create([
+            'nombres' => 'admin',
+            'apellido_paterno' => 'admin',
+            'apellido_materno' => 'admin',
             'ci' => '2224567',
             'celular' => '12345678',
-            'cargo' => 'Representante Legal',
-            'email' => 'representante@example.com',
-            'password' => Hash::make('12e45678')
-        ]);
-        $userRepresentante->assignRole($roleRepresentante);
+            'email' => 'admin@example.com',
+            'password' => Hash::make('12e45678'),
 
-        $userOperador = User::create([
-            'nombres' => 'Usuario',
-            'apellido_paterno' => 'Operador',
-            'apellido_materno' => 'Sistema',
+            // Claves foráneas opcionales (deben existir en sus tablas respectivas)
+            'nacionalidad_id' => 24,
+            'departamento_id' => 2,
+            'municipio_id' => 2,
+        ]);
+        // Asignación de rol usando el paquete (ej. Spatie)
+        $userAdmin->assignRole($roleAdmin);
+
+        // 2. Usuario nacional
+        $userNacional = User::create([
+            'nombres' => 'nacional',
+            'apellido_paterno' => 'nacional',
+            'apellido_materno' => 'nacional',
             'ci' => '2345678',
             'celular' => '12345678',
-            'cargo' => 'Operador',
-            'email' => 'operador@example.com',
-            'password' => Hash::make('12e45678')
-        ]);
-        $userOperador->assignRole($roleOperador);
+            'email' => 'nacional@example.com',
+            'password' => Hash::make('12e45678'),
 
-        $userGAD = User::create([
-            'nombres' => 'Usuario',
-            'apellido_paterno' => 'GAD',
-            'apellido_materno' => 'Local',
+            'nacionalidad_id' => 24,
+            'departamento_id' => 4,
+            'municipio_id' => 91,
+        ]);
+        $userNacional->assignRole($roleNacional);
+
+        // 3. Usuario departamental
+        $userDepartamental = User::create([
+            'nombres' => 'departamental',
+            'apellido_paterno' => 'departamental',
+            'apellido_materno' => 'departamental',
             'ci' => '3456789',
             'celular' => '98765432',
-            'cargo' => 'Técnico GAD',
-            'email' => 'gad@example.com',
-            'password' => Hash::make('12e45678')
-        ]);
-        $userGAD->assignRole($roleGAD);
+            'email' => 'departamental@example.com',
+            'password' => Hash::make('12e45678'),
 
-        $userViceministerio = User::create([
-            'nombres' => 'Usuario',
-            'apellido_paterno' => 'Viceministerio',
-            'apellido_materno' => 'Nacional',
+            'nacionalidad_id' => 24,
+            'departamento_id' => 6,
+            'municipio_id' => 146,
+        ]);
+        $userDepartamental->assignRole($roleDepartamental);
+
+        // 4. Usuario prestador
+        $userPrestador = User::create([
+            'nombres' => 'prestador',
+            'apellido_paterno' => 'prestador',
+            'apellido_materno' => 'prestador',
             'ci' => '4567890',
             'celular' => '55566677',
-            'cargo' => 'Analista',
-            'email' => 'viceministerio@example.com',
-            'password' => Hash::make('12e45678')
-        ]);
-        $userViceministerio->assignRole($roleViceministerio);
+            'email' => 'prestador@example.com',
+            'password' => Hash::make('12e45678'),
 
-        $userInstitucion = User::create([
-            'nombres' => 'Usuario',
-            'apellido_paterno' => 'Institucion',
-            'apellido_materno' => 'Educativa',
+            'nacionalidad_id' => 24,
+            'departamento_id' => 7,
+            'municipio_id' => 190,
+        ]);
+        $userPrestador->assignRole($rolePrestador);
+
+        // 5. Usuario prestadoremp
+        $userPrestadoremp = User::create([
+            'nombres' => 'prestadoremp',
+            'apellido_paterno' => 'prestadoremp',
+            'apellido_materno' => 'prestadoremp',
             'ci' => '5678901',
             'celular' => '44455666',
-            'cargo' => 'Técnico Institución',
+            'email' => 'prestadoremp@example.com',
+            'password' => Hash::make('12e45678'),
+
+            'nacionalidad_id' => 24,
+            'departamento_id' => 5,
+            'municipio_id' => 220,
+        ]);
+        $userPrestadoremp->assignRole($rolePrestadoremp);
+
+                // 6. Usuario Institución
+        $userInstitucion = User::create([
+            'nombres' => 'institucion',
+            'apellido_paterno' => 'institucion',
+            'apellido_materno' => 'institucion',
+            'ci' => '5608901',
+            'celular' => '44455666',
             'email' => 'institucion@example.com',
-            'password' => Hash::make('12e45678')
+            'password' => Hash::make('12e45678'),
+
+            'nacionalidad_id' => 24,
+            'departamento_id' => 5,
+            'municipio_id' => 220,
         ]);
         $userInstitucion->assignRole($roleInstitucion);
     }

@@ -24,6 +24,9 @@ return new class extends Migration
             $table->boolean('es_titular')->default(false);
             $table->string('tipo_parentesco', 50)->nullable();
 
+            // En la tabla 'estancias'
+            $table->foreignId('lote_id')->nullable()->constrained('lotes')->onDelete('cascade'); // Si se borra un lote, se borran sus estancias
+
             // Nivel 1: Aprobación GAD
             $table->enum('estado_aprobacion_gad', ['PENDIENTE', 'APROBADO', 'RECHAZADO'])->default('PENDIENTE');
             $table->foreignId('gad_usuario_id')->nullable()->constrained('users')->onDelete('set null');

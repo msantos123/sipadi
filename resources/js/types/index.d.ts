@@ -49,3 +49,7 @@ export interface Usuarios {
     estado: 'activo' | 'inactivo'; // Restringe los valores posibles
     email: string;
 }
+
+declare module '@inertiajs/core' {
+    interface PageProps extends AppPageProps {}
+}

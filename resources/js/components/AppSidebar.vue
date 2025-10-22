@@ -29,10 +29,21 @@ const mainNavItems: NavItem[] = [
         icon: User,
     },
     {
-        title: 'Generar Parte Diario',
-        href: '/reservas/nueva',
+        title: 'Registrar Estancia',
+        href: '/checkin',
         icon: User,
     },
+    {
+        title: 'Ver Estancia',
+        href: '/estancias',
+        icon: User,
+    },
+    {
+        title: 'Ver Parte Diario',
+        href: '/revision',
+        icon: User,
+    },
+
 ];
 
 const footerNavItems: NavItem[] = [

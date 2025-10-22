@@ -11,11 +11,24 @@ class Estancia extends Model
     use HasFactory;
 
     protected $fillable = [
-        'reserva_id', 'persona_id', 'responsable_id', 'nro_cuarto',
-        'fecha_hora_ingreso', 'fecha_hora_salida_efectiva', 'estado_estancia',
-        'es_titular', 'tipo_parentesco', 'estado_aprobacion_gad', 'gad_usuario_id',
-        'gad_fecha_aprobacion', 'gad_observaciones', 'estado_aprobacion_vmt',
-        'vmt_usuario_id', 'vmt_fecha_aprobacion', 'vmt_observaciones',
+        'reserva_id',
+        'persona_id',
+        'responsable_id',
+        'nro_cuarto',
+        'fecha_hora_ingreso',
+        'fecha_hora_salida_efectiva',
+        'estado_estancia',
+        'es_titular',
+        'tipo_parentesco',
+        'lote_id',
+        'estado_aprobacion_gad',
+        'gad_usuario_id',
+        'gad_fecha_aprobacion',
+        'gad_observaciones',
+        'estado_aprobacion_vmt',
+        'vmt_usuario_id',
+        'vmt_fecha_aprobacion',
+        'vmt_observaciones',
     ];
 
     protected $casts = [
@@ -29,6 +42,8 @@ class Estancia extends Model
 
     public function persona() { return $this->belongsTo(Persona::class); }
     public function reserva() { return $this->belongsTo(Reserva::class); }
+
+    public function lote() { return $this->belongsTo(Lote::class, 'lote_id'); }
 
     // Titular responsable de esta estancia (si es un dependiente)
     public function responsable() { return $this->belongsTo(Estancia::class, 'responsable_id'); }

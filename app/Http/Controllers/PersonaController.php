@@ -74,10 +74,27 @@ class PersonaController extends Controller
 
         $persona->update($validatedData);
 
-        return Redirect::back()->with('success', 'Persona actualizada con éxito.')->with('persona', $persona);
+        return response()->json($persona);
     }
 
     public function search(Request $request)
+    {
+        $query = Persona::query();
+
+        if ($request->has('nro_documento') && $request->nro_documento) {
+            $query->where('nro_documento', 'like', '%' . $request->nro_documento . '%');
+        }
+        if ($request->has('nombres') && $request->nombres) {
+            $query->where('nombres', 'like', '%' . $request->nombres . '%');
+        }
+        if ($request->has('apellido_paterno') && $request->apellido_paterno) {
+            $query->where('apellido_paterno', 'like', '%' . $request->apellido_paterno . '%');
+        }
+
+        return response()->json($query->take(10)->get());
+    }
+
+    public function searchOpcional(Request $request)
     {
         $request->validate([
             'documento' => 'required|string|min:3',

@@ -62,6 +62,23 @@ return [
             ]) : [],
         ],
 
+        'mysql_sidetur' => [
+            'driver' => 'mysql',
+            // Usamos las variables definidas en .env
+            'host' => env('DB_HOST_SIDETUR', '127.0.0.1'),
+            'port' => env('DB_PORT_SIDETUR', '3306'),
+            'database' => env('DB_DATABASE_SIDETUR', 'sidetur'),
+            'username' => env('DB_USERNAME_SIDETUR', 'root'),
+            'password' => env('DB_PASSWORD_SIDETUR', ''), // Cadena vacía
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
