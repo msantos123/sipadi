@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { ref, watch, defineExpose } from 'vue'
+import { ref, watch, defineExpose, onMounted } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { useCheckinStore } from '@/stores/useCheckinStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+const page = usePage()
+
 // Usamos el store de Pinia como única fuente de verdad
 const checkinStore = useCheckinStore()
+const establecimientoName = ref('')
 
 // Objeto reactivo para mantener los errores de validación
 const errors = ref<{ [key: string]: string }>({})
+
+onMounted(() => {
+  const user = page.props.auth?.user
+  if (user && user.establecimiento_id && user.establecimiento) {
+    checkinStore.reserva.establecimiento_id = user.establecimiento_id
+    establecimientoName.value = user.establecimiento.razon_social
+  }
+})
 
 // Observador para depuración: Muestra el estado de la reserva en la consola cuando cambia
 watch(() => checkinStore.reserva, (newVal) => {
@@ -68,9 +80,8 @@ defineExpose({
           <p v-if="errors.fecha_salida" class="text-sm text-red-600 mt-1">{{ errors.fecha_salida }}</p>
         </div>
         <div class="space-y-2">
-          <Label for="establecimiento_id">ID Establecimiento</Label>
-          <Input id="establecimiento_id" v-model.number="checkinStore.reserva.establecimiento_id" type="number" />
-           <!-- Aquí podrías tener un Select en lugar de un Input -->
+          <Label for="establecimiento_id">Establecimiento</Label>
+          <Input id="establecimiento_id" v-model="establecimientoName" type="text" disabled />
         </div>
         <div class="space-y-2">
           <Label for="nro_cuarto">Número de Cuarto</Label>

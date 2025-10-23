@@ -35,44 +35,57 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request, SideturSyncService $syncService): RedirectResponse
     {
-        // 1. Validar credenciales contra la base de datos de Sidetur
         Log::info('Iniciando proceso de autenticación para: ' . $request->email);
+
+        // 1. Intentar autenticar contra la base de datos local (SIPADI)
+        $credentials = $request->only('email', 'password');
+        $remember = $request->boolean('remember');
+
+        if (Auth::attempt($credentials, $remember)) {
+            Log::info('Autenticación local (SIPADI) exitosa para: ' . $request->email);
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        Log::info('Autenticación local fallida. Intentando con Sidetur para: ' . $request->email);
+
+        // 2. Si la autenticación local falla, validar contra Sidetur
         $sideturUser = SideturUser::where('email', $request->email)->first();
 
         if (! $sideturUser || ! Hash::check($request->password, $sideturUser->password)) {
-            Log::warning('Intento de login fallido (credenciales inválidas) para: ' . $request->email);
+            Log::warning('Intento de login fallido (credenciales inválidas en SIPADI y Sidetur) para: ' . $request->email);
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
         }
+
         Log::info('Credenciales válidas encontradas en Sidetur para: ' . $request->email);
 
-
-        // 2. Sincronizar el usuario y obtener el modelo de la BD local (SIPADI)
+        // 3. Sincronizar el usuario para obtener/crear el modelo en la BD local (SIPADI)
         $user = $syncService->syncUser($request->email);
 
         if (! $user) {
-            // Esto no debería pasar si la validación fue exitosa, pero es una buena salvaguarda
-            Log::error('Error crítico: No se pudo sincronizar el usuario después de una validación exitosa.', ['email' => $request->email]);
+            // Esto no debería ocurrir si la validación en Sidetur fue exitosa, pero es una salvaguarda
+            Log::error('Error crítico: No se pudo sincronizar el usuario después de una validación exitosa en Sidetur.', ['email' => $request->email]);
             throw ValidationException::withMessages([
                 'email' => 'Ocurrió un error al sincronizar la cuenta de usuario.',
             ]);
         }
 
-        // 3. El resto del código original permanece igual, pero usando la variable $user
-        // que ahora contiene el usuario de la base de datos local.
+        // 4. Manejar 2FA y realizar el login para el usuario sincronizado
         if (Features::enabled(Features::twoFactorAuthentication()) && $user->hasEnabledTwoFactorAuthentication()) {
-            Log::info('Usuario requiere autenticación de dos factores.', ['email' => $user->email]);
+            Log::info('Usuario sincronizado requiere autenticación de dos factores.', ['email' => $user->email]);
             $request->session()->put([
                 'login.id' => $user->getKey(),
-                'login.remember' => $request->boolean('remember'),
+                'login.remember' => $remember,
             ]);
 
             return to_route('two-factor.login');
         }
 
-        Log::info('Autenticando y iniciando sesión para el usuario.', ['email' => $user->email]);
-        Auth::login($user, $request->boolean('remember'));
+        Log::info('Autenticando y iniciando sesión para el usuario sincronizado desde Sidetur.', ['email' => $user->email]);
+        Auth::login($user, $remember);
 
         $request->session()->regenerate();
 

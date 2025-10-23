@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -38,11 +38,21 @@ interface Estancia {
   dependientes: Estancia[];
 }
 
+interface Establecimiento {
+    razon_social: string;
+}
+
+interface Departamento {
+    nombre: string;
+}
+
 interface Lote {
     id: number;
     fecha_lote: string;
     estado_lote: 'PENDIENTE_DE_ENVIO' | 'EN_REVISION_GAD' | 'EN_REVISION_VMT' | 'COMPLETADO';
     fecha_envio: string | null;
+    establecimiento: Establecimiento;
+    departamento: Departamento;
 }
 
 // --- Props ---
@@ -170,18 +180,25 @@ function getBadgeVariant(estado: string) {
     <AppLayout>
         <div class="flex flex-1 flex-col gap-4 rounded-xl p-4">
             <Card>
-                <CardHeader class="flex-row items-center justify-between">
-                    <CardTitle>Listado de Estancias</CardTitle>
-                    <div class="flex items-center gap-4">
-                        <Input
-                            type="date"
-                            v-model="fechaSeleccionada"
-                            class="w-[180px]"
-                        />
-                        <Badge :variant="loteStatusInfo.variant">{{ loteStatusInfo.text }}</Badge>
-                        <Button @click="submitLote" :disabled="!canSubmitLote">
-                            Cerrar y Enviar Lote a GAD
-                        </Button>
+                <CardHeader>
+                    <div class="flex flex-row items-start justify-between">
+                        <div>
+                            <CardTitle>Listado de Estancias</CardTitle>
+                            <CardDescription v-if="lote" class="mt-2">
+                                {{ lote.establecimiento.razon_social }} | {{ lote.departamento.nombre }}
+                            </CardDescription>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <Input
+                                type="date"
+                                v-model="fechaSeleccionada"
+                                class="w-[180px]"
+                            />
+                            <Badge :variant="loteStatusInfo.variant">{{ loteStatusInfo.text }}</Badge>
+                            <Button @click="submitLote" :disabled="!canSubmitLote">
+                                Cerrar y Enviar Lote a Departamental
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

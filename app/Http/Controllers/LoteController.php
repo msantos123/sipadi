@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Departamento;
 use App\Models\Lote;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,7 @@ class LoteController extends Controller
     {
         // TODO: Añadir autorización para que solo usuarios GAD puedan ver esto.
         $lotes = Lote::where('estado_lote', 'EN_REVISION_GAD')
-            ->with('usuario') // Carga la relación para obtener el nombre
+            ->with('usuarioRegistra') // Carga la relación para obtener el nombre
             ->orderBy('fecha_lote', 'desc')
             ->get();
 
@@ -97,4 +98,10 @@ class LoteController extends Controller
 
         return response()->json(['message' => 'Lote enviado a VMT para su revisión.']);
     }
+
+    public function confirmacionView()
+    {
+        return Inertia::render('Checkin/ViewConfirmacion');
+    }
+
 }

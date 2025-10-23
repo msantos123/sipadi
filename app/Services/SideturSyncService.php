@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Departamento;
 use App\Models\Nacionalidad;
+use App\Models\Establecimiento;
 use Spatie\Permission\Models\Role;
 use App\Models\Sidetur\SideturUser;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -21,46 +23,72 @@ class SideturSyncService
      */
     public function syncUser(string $identificator): ?User
     {
-        // 1. Buscar el usuario en Sidetur
+        // 1. Buscar si el usuario ya existe en SIPADI (por CI o email)
+        $sipadiUser = User::where('email', $identificator)
+            ->orWhere('ci', $identificator)
+            ->first();
+
+        if ($sipadiUser) {
+            Log::info('Usuario encontrado en SIPADI. No se necesita sincronización.', ['identificator' => $identificator, 'source' => 'sipadi']);
+            return $sipadiUser; // Retornar el usuario existente
+        }
+
+        // 2. Si no existe en SIPADI, buscar el usuario en Sidetur
         $sideturUser = SideturUser::where('email', $identificator)
             ->orWhere('cedula_identidad', $identificator)
             ->first();
 
-        //dd($sideturUser);
-
-        if (!$sideturUser) {
-            return null; // Usuario no encontrado en Sidetur
+        if (! $sideturUser) {
+            Log::warning('Usuario no encontrado ni en SIPADI ni en Sidetur.', ['identificator' => $identificator]);
+            return null; // Usuario no encontrado en ninguna de las dos bases de datos
         }
 
-        // 2. Buscar si el usuario ya existe en SIPADI (por CI o email)
+        // 2.1. Doble chequeo para evitar duplicados con datos de Sidetur
         $ciCompleto = $sideturUser->cedula_identidad . ($sideturUser->complemento ? '-' . $sideturUser->complemento : '');
-        $sipadiUser = User::where('email', $sideturUser->email)
+        $existingSipadiUser = User::where('email', $sideturUser->email)
             ->orWhere('ci', $ciCompleto)
             ->first();
 
-        if ($sipadiUser) {
-            Log::info('Usuario encontrado en SIPADI. No se necesita sincronización.', ['email' => $sipadiUser->email, 'source' => 'sipadi']);
-            return $sipadiUser; // Retornar el usuario existente
+        if ($existingSipadiUser) {
+            Log::info('Usuario encontrado en SIPADI con datos de Sidetur. No se necesita sincronización.', ['email' => $existingSipadiUser->email, 'source' => 'sipadi']);
+            return $existingSipadiUser; // Retornar el usuario existente
         }
 
         // 3. Si no existe, proceder con la creación (migración JIT)
         Log::info('Usuario no encontrado en SIPADI. Creando nuevo usuario desde Sidetur.', ['email' => $sideturUser->email, 'source' => 'sidetur']);
 
-        // 3.1. Mapeo de Rol
+        // 3.1. Sincronizar Establecimiento
+        $establecimientoId = null;
+
+        // Usamos una consulta directa porque el modelo SideturEstablecimiento no fue creado.
+        $sideturEstablecimiento = DB::connection('mysql_sidetur')->table('establecimiento')
+            ->where('id_usuario', $sideturUser->id) // Asumiendo que la PK de sideturUser es id_usuario
+            ->where('id_prestador', 5)
+            ->first();
+        //dd($sideturEstablecimientoData);
+        if ($sideturEstablecimiento) {
+            // Obtenemos el ID del establecimiento directamente de Sidetur
+            $establecimientoId = $sideturEstablecimiento->id_establecimiento;
+            Log::info('Establecimiento encontrado en Sidetur.', ['id' => $establecimientoId]);
+        } else {
+            Log::warning('El usuario de Sidetur no tiene un establecimiento asociado...', ['sidetur_user_id' => $sideturUser->id_usuario]);
+        }
+
+        // 3.2. Mapeo de Rol
         $rolId = $this->getSipadiRolId($sideturUser);
 
-        // 3.2. Mapeo de Nacionalidad (case-insensitive)
+        // 3.3. Mapeo de Nacionalidad (case-insensitive)
         $nacionalidadId = null;
         if ($sideturUser->nacionalidad) {
             $nacionalidad = Nacionalidad::where('gentilicio', 'like', $sideturUser->nacionalidad)->first();
             $nacionalidadId = $nacionalidad ? $nacionalidad->id : null;
         }
 
-        // 3.3. Mapeo de Departamento (ID directo)
+        // 3.4. Mapeo de Departamento (ID directo)
         $departamentoId = $sideturUser->departamento;
 
         // 4. Crear el nuevo usuario en SIPADI
-        $sipadiUser = User::create([
+        $newSipadiUser = User::create([
             'apellido_paterno' => $sideturUser->apellido_paterno,
             'apellido_materno' => $sideturUser->apellido_materno,
             'nombres' => $sideturUser->nombre,
@@ -69,6 +97,7 @@ class SideturSyncService
             'nacionalidad_id' => $nacionalidadId,
             'departamento_id' => $departamentoId,
             'municipio_id' => null, // Se establece a null como solicitado
+            'establecimiento_id' => $establecimientoId, // ID del establecimiento sincronizado
             'estado' => $sideturUser->active == 1 ? 'activo' : 'inactivo',
             'email' => $sideturUser->email,
             'password' => $sideturUser->password, // Copiar el hash directamente
@@ -78,10 +107,10 @@ class SideturSyncService
 
         // 5. Asignar rol con Spatie
         if ($rolId) {
-            $sipadiUser->assignRole($rolId);
+            $newSipadiUser->assignRole($rolId);
         }
 
-        return $sipadiUser;
+        return $newSipadiUser;
     }
 
     private function getSipadiRolId(SideturUser $sideturUser): ?int

@@ -26,14 +26,21 @@ export type AppPageProps<
     sidebarOpen: boolean;
 };
 
+export interface Establecimiento {
+    id_establecimiento: number;
+    razon_social: string;
+}
+
 export interface User {
     id: number;
-    name: string;
+    apellido_paterno: string;
     email: string;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
+    establecimiento_id: number;
+    establecimiento: Establecimiento;
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;

@@ -115,4 +115,48 @@ class EstanciaController extends Controller
 
         return response()->json(['message' => 'Estancia rechazada por GAD.']);
     }
+
+    /**
+     * Aprueba una estancia por parte de VMT.
+     */
+    public function aprobarVmt(Estancia $estancia)
+    {
+        // TODO: Autorización para VMT
+        if ($estancia->estado_aprobacion_vmt !== 'PENDIENTE') {
+            return response()->json(['message' => 'Esta estancia no se puede aprobar.'], 422);
+        }
+
+        $estancia->update([
+            'estado_aprobacion_vmt' => 'APROBADO',
+            'vmt_usuario_id' => auth()->id(),
+            'vmt_fecha_aprobacion' => now(),
+            'vmt_observaciones' => null,
+        ]);
+
+        return response()->json(['message' => 'Estancia aprobada por VMT.']);
+    }
+
+    /**
+     * Rechaza una estancia por parte de VMT.
+     */
+    public function rechazarVmt(Request $request, Estancia $estancia)
+    {
+        // TODO: Autorización para VMT
+        $request->validate([
+            'vmt_observaciones' => 'required|string|max:500',
+        ]);
+
+        if ($estancia->estado_aprobacion_vmt !== 'PENDIENTE') {
+            return response()->json(['message' => 'Esta estancia no se puede rechazar.'], 422);
+        }
+
+        $estancia->update([
+            'estado_aprobacion_vmt' => 'RECHAZADO',
+            'vmt_observaciones' => $request->vmt_observaciones,
+            'vmt_usuario_id' => auth()->id(),
+            'vmt_fecha_aprobacion' => now(),
+        ]);
+
+        return response()->json(['message' => 'Estancia rechazada por VMT.']);
+    }
 }

@@ -31,7 +31,7 @@ export const useCheckinStore = defineStore('checkin', {
     reserva:{
         usuario_registra_id: null as number | null,
         codigo_reserva: '',
-        establecimiento_id: '',
+        establecimiento_id: null as number | null,
         fecha_entrada: '',
         fecha_salida: '',
         nro_cuarto: 1,

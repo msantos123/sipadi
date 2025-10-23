@@ -5,6 +5,7 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\EstanciaController;
 use App\Http\Controllers\LoteController;
+use App\Http\Controllers\ConfirmacionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -49,6 +50,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/lotes/revision/gad', [LoteController::class, 'revisionGad'])->name('lotes.revision-gad');
     Route::get('/lotes/{lote}/estancias', [LoteController::class, 'getEstancias'])->name('lotes.estancias');
     Route::put('/lotes/{lote}/enviar-vmt', [LoteController::class, 'submitToVmt'])->name('lotes.submit-vmt');
+
+    // Rutas para la revisión y confirmación de VMT
+    Route::get('/confirmacion', [ConfirmacionController::class, 'index'])->name('confirmacion.index');
+    Route::get('/lotes/revision/vmt', [ConfirmacionController::class, 'revisionVmt'])->name('lotes.revision-vmt');
+    Route::put('/lotes/{lote}/completar', [ConfirmacionController::class, 'completar'])->name('lotes.completar');
+    Route::put('/estancias/{estancia}/aprobar-vmt', [EstanciaController::class, 'aprobarVmt'])->name('estancias.aprobar-vmt');
+    Route::put('/estancias/{estancia}/rechazar-vmt', [EstanciaController::class, 'rechazarVmt'])->name('estancias.rechazar-vmt');
 
 });
 

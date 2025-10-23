@@ -23,8 +23,10 @@ class CheckinController extends Controller
     {
         $fecha = $request->input('fecha', now()->toDateString());
 
-        // Encontrar el lote para el usuario y fecha seleccionada
-        $lote = Lote::where('usuario_registra_id', auth()->id())
+        $user = auth()->user();
+        // Encontrar el lote para el establecimiento y fecha seleccionada, con sus relaciones
+        $lote = Lote::with(['establecimiento', 'departamento'])
+                    ->where('establecimiento_id', $user->establecimiento_id)
                     ->where('fecha_lote', $fecha)
                     ->first();
 
@@ -86,14 +88,19 @@ class CheckinController extends Controller
 
         try {
             $result = DB::transaction(function () use ($validated) {
-                // 2. Obtener o crear el Lote para el día y usuario actual
+                // 2. Obtener o crear el Lote para el día y establecimiento actual
+                $user = auth()->user();
                 $lote = Lote::firstOrCreate(
                     [
-                        'usuario_registra_id' => auth()->id(),
+                        // Un lote es único para un establecimiento en una fecha específica.
+                        'establecimiento_id' => $user->establecimiento_id,
                         'fecha_lote' => now()->toDateString(),
                     ],
                     [
-                        // 'estado' por defecto es 'PENDIENTE_DE_ENVIO' según la migración
+                        // Atributos a establecer si se crea un nuevo lote.
+                        'departamento_id' => $user->departamento_id,
+                        'usuario_registra_id' => $user->id, // El primer usuario que hace check-in en el día crea el lote.
+                        // 'estado_lote' se establece por defecto desde la migración.
                     ]
                 );
 

@@ -39,8 +39,13 @@ const mainNavItems: NavItem[] = [
         icon: User,
     },
     {
-        title: 'Ver Parte Diario',
+        title: 'Ver Parte Diario Hoteles',
         href: '/revision',
+        icon: User,
+    },
+    {
+        title: 'Ver Parte Diario Departamental',
+        href: '/confirmacion',
         icon: User,
     },
 

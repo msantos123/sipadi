@@ -11,13 +11,6 @@ class Lote extends Model
 {
     use HasFactory;
 
-    /**
-     * La tabla asociada con el modelo.
-     * Como el modelo se llama 'Lote' pero la tabla es 'lotes_estancias',
-     * debemos especificarlo aquí.
-     *
-     * @var string
-     */
     protected $table = 'lotes';
 
     /**
@@ -27,10 +20,14 @@ class Lote extends Model
      */
     protected $fillable = [
         'fecha_lote',
-        'usuario_registra_id',
         'estado_lote',
+        'establecimiento_id',
+        'departamento_id',
+        'usuario_registra_id',
+        'operador_envio_id',
         'fecha_envio_operador',
         'fecha_envio_gad',
+        'fecha_envio_vmt',
     ];
 
     /**
@@ -40,22 +37,47 @@ class Lote extends Model
      */
     protected $casts = [
         'fecha_lote' => 'date',
-        'fecha_envio' => 'datetime',
+        'fecha_envio_operador' => 'datetime',
+        'fecha_envio_gad' => 'datetime',
     ];
 
     /**
-     * Define la relación: Un Lote tiene muchas Estancias.
+     * Un Lote pertenece a un Establecimiento.
+     */
+    public function establecimiento(): BelongsTo
+    {
+        return $this->belongsTo(Establecimiento::class, 'establecimiento_id', 'id_establecimiento');
+    }
+
+    /**
+     * Un Lote pertenece a un Departamento.
+     */
+    public function departamento(): BelongsTo
+    {
+        return $this->belongsTo(Departamento::class);
+    }
+
+    /**
+     * Un Lote es registrado por un Usuario.
+     */
+    public function usuarioRegistra(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_registra_id');
+    }
+
+    /**
+     * Un Lote es enviado por un Usuario (operador).
+     */
+    public function operadorEnvio(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'operador_envio_id');
+    }
+
+    /**
+     * Un Lote tiene muchas Estancias.
      */
     public function estancias(): HasMany
     {
         return $this->hasMany(Estancia::class, 'lote_id');
-    }
-
-    /**
-     * Define la relación: Un Lote pertenece a un Usuario (quien lo registró).
-     */
-    public function usuario(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'usuario_registra_id');
     }
 }

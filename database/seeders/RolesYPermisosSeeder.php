@@ -70,6 +70,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 2,
             'municipio_id' => 2,
+            'establecimiento_id' => null,
         ]);
         // Asignación de rol usando el paquete (ej. Spatie)
         $userAdmin->assignRole($roleAdmin);
@@ -87,6 +88,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 4,
             'municipio_id' => 91,
+            'establecimiento_id' => null,
         ]);
         $userNacional->assignRole($roleNacional);
 
@@ -103,6 +105,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 6,
             'municipio_id' => 146,
+            'establecimiento_id' => null,
         ]);
         $userDepartamental->assignRole($roleDepartamental);
 
@@ -119,6 +122,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 7,
             'municipio_id' => 190,
+            'establecimiento_id' => 8,
         ]);
         $userPrestador->assignRole($rolePrestador);
 
@@ -135,6 +139,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 5,
             'municipio_id' => 220,
+            'establecimiento_id' => 8,
         ]);
         $userPrestadoremp->assignRole($rolePrestadoremp);
 
@@ -151,6 +156,7 @@ class RolesYPermisosSeeder extends Seeder
             'nacionalidad_id' => 24,
             'departamento_id' => 5,
             'municipio_id' => 220,
+            'establecimiento_id' => null,
         ]);
         $userInstitucion->assignRole($roleInstitucion);
     }
