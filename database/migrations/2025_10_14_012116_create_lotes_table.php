@@ -21,6 +21,7 @@ return new class extends Migration
             // --- Relaciones y Auditoría ---
             // IDs para filtrado y estadísticas
             $table->foreignId('establecimiento_id')->nullable();
+            $table->foreignId('sucursal_id')->nullable();
             $table->foreignId('departamento_id')->constrained('departamentos');
 
             // Quién creó el lote
@@ -28,12 +29,14 @@ return new class extends Migration
 
             // Quién y cuándo lo envió el operador
             $table->foreignId('operador_envio_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('fecha_envio_operador')->nullable();
+            $table->timestamp('fecha_envio_gad')->nullable();
 
             // Cuándo lo vio/procesó la GAD
-            $table->timestamp('fecha_envio_gad')->nullable();
+            $table->timestamp('fecha_envio_nacional')->nullable();
+            $table->foreignId('aprobador_gad_id')->nullable()->constrained('users');
             // Cuándo lo vio/procesó la vmt
-            $table->timestamp('fecha_envio_vmt')->nullable();
+            $table->timestamp('fecha_envio_completado')->nullable();
+            $table->foreignId('aprobador_nacional_id')->nullable()->constrained('users');
 
             $table->timestamps();
 

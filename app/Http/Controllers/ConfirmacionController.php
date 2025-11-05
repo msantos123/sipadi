@@ -27,7 +27,7 @@ class ConfirmacionController extends Controller
         $query = Lote::query();
 
         // Filtrar por estado del lote
-        $query->where('estado_lote', 'EN_REVISION_VMT');
+        $query->whereIn('estado_lote', ['EN_REVISION_VMT', 'COMPLETADO']);
 
         // Filtrar por fecha si se proporciona
         if ($request->has('fecha_lote') && $request->fecha_lote) {
@@ -39,7 +39,7 @@ class ConfirmacionController extends Controller
             $query->where('departamento_id', $request->departamento_id);
         }
 
-        $lotes = $query->with('departamento', 'usuarioRegistra', 'establecimiento')
+        $lotes = $query->with('departamento', 'usuarioRegistra', 'establecimiento', 'sucursales')
             ->orderBy('fecha_lote', 'desc')
             ->get();
 
@@ -57,14 +57,9 @@ class ConfirmacionController extends Controller
             return response()->json(['message' => 'Este lote no está en revisión por VMT.'], 422);
         }
 
-        // Opcional: Verificar que todas las estancias han sido procesadas por VMT
-        if ($lote->estancias()->where('estado_aprobacion_vmt', 'PENDIENTE')->exists()) {
-            return response()->json(['message' => 'No todas las estancias de este lote han sido revisadas por VMT.'], 422);
-        }
-
         $lote->update([
             'estado_lote' => 'COMPLETADO',
-            'fecha_envio_vmt' => now(), // Opcional: usar un campo dedicado si existe
+            'fecha_envio_completado' => now(), // Opcional: usar un campo dedicado si existe
         ]);
 
         return response()->json(['message' => 'Lote completado con éxito.']);

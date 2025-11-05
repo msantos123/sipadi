@@ -7,6 +7,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Arr;
 
 class RolesYPermisosSeeder extends Seeder
 {
@@ -21,40 +22,54 @@ class RolesYPermisosSeeder extends Seeder
         // Crear Permisos
         Permission::create(['name' => 'gestionar-usuarios']);
         Permission::create(['name' => 'gestionar-empleados']);
-        Permission::create(['name' => 'registrar-parte-diario']);
-        Permission::create(['name' => 'aprobar-parte-diario']);
-        Permission::create(['name' => 'ver-reportes-nacionales']);
-        Permission::create(['name' => 'ver-reportes-especificos']);
+        Permission::create(['name' => 'gestionar-roles']);
+        Permission::create(['name' => 'gestionar-cuartos']);
+        Permission::create(['name' => 'registrar-estancia']);
+        Permission::create(['name' => 'ver-estancia']);
+        Permission::create(['name' => 'aprobar-estancias']);
+        Permission::create(['name' => 'ver-parte-diario-departamental']);
+        Permission::create(['name' => 'aprobar-parte-diario-departamental']);
+        Permission::create(['name' => 'ver-parte-diario-nacional']);
+        Permission::create(['name' => 'aprobar-parte-diario-nacional']);
 
         // Crear Roles y Asignar Permisos
-        $roleAdmin = Role::create(['name' => 'admin']);
+        $roleAdmin = Role::create(['id' => 1, 'name' => 'admin']);
         $roleAdmin->givePermissionTo([
             'gestionar-usuarios',
-            'gestionar-empleados',
-            'aprobar-parte-diario',
-            'registrar-parte-diario',
-            'ver-reportes-nacionales',
-            'ver-reportes-especificos'
+            'gestionar-roles',
         ]);
 
-        $roleNacional = Role::create(['name' => 'Nacional']);
+        $roleNacional = Role::create(['id' => 2, 'name' => 'Nacional']);
         $roleNacional->givePermissionTo([
-            'gestionar-usuarios',
-            'ver-reportes-nacionales',
-            'ver-reportes-especificos'
+            'ver-parte-diario-nacional',
+            'aprobar-parte-diario-nacional',
         ]);
 
-        $roleDepartamental = Role::create(['name' => 'Departamental']);
-        $roleDepartamental->givePermissionTo('aprobar-parte-diario');
+        $roleDepartamental = Role::create(['id' => 4, 'name' => 'Departamental']);
+        $roleDepartamental->givePermissionTo([
+            'ver-parte-diario-departamental',
+            'aprobar-parte-diario-departamental',
 
-        $rolePrestador = Role::create(['name' => 'Prestador']);
-        $rolePrestador->givePermissionTo('gestionar-empleados');
+        ]);
 
-        $rolePrestadoremp = Role::create(['name' => 'Prestadoremp']);
-        $rolePrestadoremp->givePermissionTo('registrar-parte-diario');
+        $rolePrestador = Role::create(['id' => 6, 'name' => 'Prestador']);
+        $rolePrestador->givePermissionTo([
+            'gestionar-empleados',
+            'ver-estancia',
+            'aprobar-estancias',
+            'gestionar-cuartos',
+        ]);
 
-        $roleInstitucion = Role::create(['name' => 'Institucion']);
-        $roleInstitucion->givePermissionTo('ver-reportes-especificos');
+        $rolePrestadoremp = Role::create(['id' => 7, 'name' => 'Prestadoremp']);
+        $rolePrestadoremp->givePermissionTo([
+            'registrar-estancia',
+            'ver-estancia',
+            'aprobar-estancias',
+
+        ]);
+
+        $roleInstitucion = Role::create(['id' => 8, 'name' => 'Institucion']);
+        $roleInstitucion->givePermissionTo('ver-parte-diario-nacional');
 
                 // 1. Usuario admin
         $userAdmin = User::create([
@@ -71,6 +86,7 @@ class RolesYPermisosSeeder extends Seeder
             'departamento_id' => 2,
             'municipio_id' => 2,
             'establecimiento_id' => null,
+            'sucursal_id' => null,
         ]);
         // Asignación de rol usando el paquete (ej. Spatie)
         $userAdmin->assignRole($roleAdmin);
@@ -89,6 +105,7 @@ class RolesYPermisosSeeder extends Seeder
             'departamento_id' => 4,
             'municipio_id' => 91,
             'establecimiento_id' => null,
+            'sucursal_id' => null,
         ]);
         $userNacional->assignRole($roleNacional);
 
@@ -106,42 +123,81 @@ class RolesYPermisosSeeder extends Seeder
             'departamento_id' => 6,
             'municipio_id' => 146,
             'establecimiento_id' => null,
+            'sucursal_id' => null,
         ]);
         $userDepartamental->assignRole($roleDepartamental);
 
         // 4. Usuario prestador
         $userPrestador = User::create([
-            'nombres' => 'prestador',
-            'apellido_paterno' => 'prestador',
-            'apellido_materno' => 'prestador',
-            'ci' => '4567890',
+            'nombres' => 'prestador1',
+            'apellido_paterno' => 'prestador1',
+            'apellido_materno' => 'prestador1',
+            'ci' => '4567811',
             'celular' => '55566677',
-            'email' => 'prestador@example.com',
+            'email' => 'prestador1@example.com',
             'password' => Hash::make('12e45678'),
 
             'nacionalidad_id' => 24,
             'departamento_id' => 7,
             'municipio_id' => 190,
-            'establecimiento_id' => 8,
+            'establecimiento_id' => 112,
+            'sucursal_id' => null,
         ]);
-        $userPrestador->assignRole($rolePrestador);
+        $userPrestador->assignRole($rolePrestadoremp);
 
         // 5. Usuario prestadoremp
         $userPrestadoremp = User::create([
-            'nombres' => 'prestadoremp',
-            'apellido_paterno' => 'prestadoremp',
-            'apellido_materno' => 'prestadoremp',
-            'ci' => '5678901',
-            'celular' => '44455666',
-            'email' => 'prestadoremp@example.com',
+            'nombres' => 'prestadoremp1',
+            'apellido_paterno' => 'prestadoremp1',
+            'apellido_materno' => 'prestadoremp1',
+            'ci' => '5611901',
+            'celular' => '44455686',
+            'email' => 'prestadoremp1@example.com',
             'password' => Hash::make('12e45678'),
 
             'nacionalidad_id' => 24,
             'departamento_id' => 5,
             'municipio_id' => 220,
-            'establecimiento_id' => 8,
+            'establecimiento_id' => 112,
+            'sucursal_id' => 1,
         ]);
         $userPrestadoremp->assignRole($rolePrestadoremp);
+
+        // 5. Usuario prestadoremp
+        $userPrestadoremp2 = User::create([
+            'nombres' => 'prestador2',
+            'apellido_paterno' => 'prestadoremp2',
+            'apellido_materno' => 'prestadoremp2',
+            'ci' => '5012201',
+            'celular' => '44411666',
+            'email' => 'prestador2@example.com',
+            'password' => Hash::make('12e45678'),
+
+            'nacionalidad_id' => 24,
+            'departamento_id' => 5,
+            'municipio_id' => 220,
+            'establecimiento_id' => 111,
+            'sucursal_id' => null,
+        ]);
+        $userPrestadoremp2->assignRole($rolePrestadoremp);
+
+        // 5. Usuario prestadoremp
+        $userPrestadoremp3 = User::create([
+            'nombres' => 'prestadoremp2',
+            'apellido_paterno' => 'prestadoremp2',
+            'apellido_materno' => 'prestadoremp2',
+            'ci' => '5811901',
+            'celular' => '44459066',
+            'email' => 'prestadoremp2@example.com',
+            'password' => Hash::make('12e45678'),
+
+            'nacionalidad_id' => 24,
+            'departamento_id' => 5,
+            'municipio_id' => 220,
+            'establecimiento_id' => 111,
+            'sucursal_id' => 2,
+        ]);
+        $userPrestadoremp3->assignRole($rolePrestadoremp);
 
                 // 6. Usuario Institución
         $userInstitucion = User::create([
@@ -149,7 +205,7 @@ class RolesYPermisosSeeder extends Seeder
             'apellido_paterno' => 'institucion',
             'apellido_materno' => 'institucion',
             'ci' => '5608901',
-            'celular' => '44455666',
+            'celular' => '17455666',
             'email' => 'institucion@example.com',
             'password' => Hash::make('12e45678'),
 
@@ -157,6 +213,7 @@ class RolesYPermisosSeeder extends Seeder
             'departamento_id' => 5,
             'municipio_id' => 220,
             'establecimiento_id' => null,
+            'sucursal_id' => null,
         ]);
         $userInstitucion->assignRole($roleInstitucion);
     }

@@ -30,6 +30,7 @@ class User extends Authenticatable
         'departamento_id',
         'municipio_id',
         'establecimiento_id',
+        'sucursal_id',
         'estado',
         'email',
         'password',
@@ -65,6 +66,12 @@ class User extends Authenticatable
         return $this->belongsTo(Establecimiento::class, 'establecimiento_id', 'id_establecimiento');
     }
 
+    public function establecimientos()
+    {
+        return $this->hasMany(Establecimiento::class, 'id_usuario', 'id');
+    }
+
+
     public function departamento(): BelongsTo
     {
         return $this->belongsTo(Departamento::class);
@@ -73,5 +80,10 @@ class User extends Authenticatable
     public function municipio(): BelongsTo
     {
         return $this->belongsTo(Municipio::class);
+    }
+
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
 }

@@ -27,5 +27,8 @@ class Establecimiento extends Model
         'estado_activo',
     ];
 
-
+    public function sucursales()
+    {
+        return $this->hasMany(Sucursal::class, 'id_casa_matriz', 'id_establecimiento');
+    }
 }

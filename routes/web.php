@@ -1,13 +1,18 @@
 <?php
 use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\ReservaViewController;
+use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\EstanciaController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\ConfirmacionController;
+use App\Http\Controllers\TipoCuartoController;
+use App\Http\Controllers\Settings\RoleController;
 use Illuminate\Support\Facades\Route;
+use Rap2hpoutre\FastExcel\FastExcel;
 use Inertia\Inertia;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -19,9 +24,15 @@ Route::get('dashboard', function () {
 
 Route::get('usuarios/index', [UsuariosController::class, 'index'])->middleware(['auth', 'verified'])->name('usuarios.index');
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/cuartos', [TipoCuartoController::class, 'index'])->name('cuartos.index');
+    Route::post('/cuartos', [TipoCuartoController::class, 'store'])->name('cuartos.store');
+
     Route::get('/usuarios', [UsuariosController::class, 'index'])->name('usuarios.index');
     Route::get('/usuarios/create', [UsuariosController::class, 'create'])->name('usuarios.create');
+    Route::get('/usuarios/crear-usuario', [UsuariosController::class, 'createUsuario'])->name('usuarios.createUsuario');
     Route::post('/usuarios', [UsuariosController::class, 'store'])->name('usuarios.store');
+    Route::post('/usuarios/crear-usuario', [UsuariosController::class, 'storeUsuario'])->name('usuarios.storeUsuario');
     Route::get('/usuarios/{id}/edit', [UsuariosController::class, 'edit'])->name('usuarios.edit');
     Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->name('usuarios.update');
 
@@ -57,6 +68,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/lotes/{lote}/completar', [ConfirmacionController::class, 'completar'])->name('lotes.completar');
     Route::put('/estancias/{estancia}/aprobar-vmt', [EstanciaController::class, 'aprobarVmt'])->name('estancias.aprobar-vmt');
     Route::put('/estancias/{estancia}/rechazar-vmt', [EstanciaController::class, 'rechazarVmt'])->name('estancias.rechazar-vmt');
+
+
+    Route::resource('settings/roles', RoleController::class)->except(['show'])->name('index', 'roles.index');
+
+    Route::get('/solicitud/create', [SolicitudController::class, 'create'])->name('solicitud.create');
+
+    Route::post('/solicitudes', [SolicitudController::class, 'store'])->name('solicitudes.store');
+    Route::get('/solicitudes/{solicitud}/download', [SolicitudController::class, 'download'])->name('solicitudes.download');
 
 });
 

@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const props = defineProps({
@@ -40,7 +39,6 @@ const selectedDepartamento = ref('');
 // State for the review dialog
 const isReviewDialogOpen = ref(false);
 const selectedEstanciaForReview = ref<any | null>(null);
-const rejectionReason = ref('');
 
 const fetchLotes = async () => {
   try {
@@ -65,12 +63,37 @@ const fetchLotes = async () => {
 
 watch([selectedDate, selectedDepartamento], fetchLotes);
 
+const processedEstancias = computed(() => {
+    if (estancias.value.length === 0) return [];
+
+    const allEstancias = [...estancias.value];
+    const titulares = allEstancias.filter(e => e.es_titular);
+    const dependientes = allEstancias.filter(e => !e.es_titular);
+
+    const result: any[] = [];
+
+    titulares.forEach(titular => {
+        result.push({ ...titular, isTitular: true });
+        const misDependientes = dependientes.filter(d => d.responsable_id === titular.id);
+        misDependientes.forEach(dep => {
+            result.push({ ...dep, isTitular: false });
+        });
+    });
+
+    const dependientesSinTitular = dependientes.filter(d => !titulares.some(t => t.id === d.responsable_id));
+    dependientesSinTitular.forEach(dep => {
+            result.push({ ...dep, isTitular: false, hasNoTitular: true });
+    });
+
+    return result;
+});
+
 const selectLote = async (lote: any) => {
   selectedLote.value = lote;
   try {
     loadingEstancias.value = true;
     const response = await axios.get(`/lotes/${lote.id}/estancias`);
-    estancias.value = response.data.filter((e: any) => e.estado_aprobacion_gad === 'APROBADO');
+    estancias.value = response.data;
   } catch (err) {
     console.error(`Error al cargar estancias para el lote ${lote.id}:`, err);
     error.value = 'No se pudieron cargar las estancias del lote.';
@@ -88,55 +111,17 @@ const goBackToList = () => {
 
 const openReviewDialog = (estancia: any) => {
     selectedEstanciaForReview.value = estancia;
-    rejectionReason.value = estancia.vmt_observaciones || '';
     isReviewDialogOpen.value = true;
 };
 
-const aprobarVmt = async (estanciaId: number) => {
-  try {
-    await axios.put(`/estancias/${estanciaId}/aprobar-vmt`);
-    const index = estancias.value.findIndex(e => e.id === estanciaId);
-    if (index !== -1) {
-      estancias.value[index].estado_aprobacion_vmt = 'APROBADO';
-    }
-    isReviewDialogOpen.value = false;
-  } catch (err) {
-    console.error(`Error al aprobar la estancia ${estanciaId}:`, err);
-    alert('Hubo un error al aprobar la estancia.');
-  }
-};
-
-const rechazarVmt = async (estanciaId: number) => {
-  if (!rejectionReason.value.trim()) {
-    alert('El motivo del rechazo es obligatorio.');
-    return;
-  }
-
-  try {
-    await axios.put(`/estancias/${estanciaId}/rechazar-vmt`, {
-      vmt_observaciones: rejectionReason.value,
-    });
-    const index = estancias.value.findIndex(e => e.id === estanciaId);
-    if (index !== -1) {
-      const estancia = estancias.value[index];
-      estancia.estado_aprobacion_vmt = 'RECHAZADO';
-      estancia.vmt_observaciones = rejectionReason.value;
-    }
-    isReviewDialogOpen.value = false;
-  } catch (err) {
-    console.error(`Error al rechazar la estancia ${estanciaId}:`, err);
-    alert('Hubo un error al rechazar la estancia.');
-  }
-};
-
-const getVmtStatusVariant = (status: string): 'secondary' | 'destructive' | 'outline' | 'default' => {
+const getEstanciaStatusVariant = (status: string): 'secondary' | 'destructive' | 'outline' | 'default' => {
   switch (status) {
-    case 'APROBADO':
+    case 'ACTIVA':
       return 'secondary';
-    case 'RECHAZADO':
-      return 'destructive';
-    case 'PENDIENTE':
+    case 'FINALIZADA':
       return 'outline';
+    case 'CANCELADA':
+      return 'destructive';
     default:
       return 'default';
   }
@@ -164,10 +149,7 @@ const loteStatusInfo = computed(() => {
 });
 
 const canCompleteLote = computed(() => {
-    if (!estancias.value || estancias.value.length === 0) {
-        return false;
-    }
-    return estancias.value.every(e => e.estado_aprobacion_vmt !== 'PENDIENTE');
+    return selectedLote.value?.estado_lote === 'EN_REVISION_VMT';
 });
 
 const completeLote = async () => {
@@ -234,7 +216,19 @@ onMounted(() => {
         class="p-4 transition-all duration-200 border rounded-lg cursor-pointer hover:bg-gray-50 hover:shadow-md"
         @click="selectLote(lote)"
       >
-        <h3 class="font-bold">Lote #{{ lote.id }} - {{ lote.establecimiento.razon_social }}</h3>
+
+        <h3 v-if="lote && lote.sucursales && lote.sucursales.length > 0" class="font-bold">
+            Establecimiento: {{ lote.sucursales[0].nombre_sucursal }}
+        </h3>
+
+        <h3 v-else-if="lote && lote.establecimiento" class="font-bold">
+            Establecimiento: {{ lote.establecimiento.razon_social }}
+        </h3>
+
+        <h3 v-else class="font-bold">
+            Establecimiento: No disponible
+        </h3>
+
         <p>Fecha: {{ formatDate(lote.fecha_lote) }} | Departamento: {{ lote.departamento.nombre }}</p>
         <p>Estado: <span class="font-semibold">{{ lote.estado_lote }}</span></p>
         <p v-if="lote.usuario_registra">Registrado por: {{ lote.usuario_registra.nombres }} {{ lote.usuario_registra.apellido_paterno }}</p>
@@ -265,32 +259,30 @@ onMounted(() => {
                     <TableRow>
                         <TableHead>Huésped</TableHead>
                         <TableHead>Documento</TableHead>
-                        <TableHead>Estado VMT</TableHead>
+                        <TableHead>Estado Estancia</TableHead>
                         <TableHead class="text-right">Acciones</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    <template v-for="estancia in estancias" :key="estancia.id">
+                    <template v-for="estancia in processedEstancias" :key="estancia.id">
                         <TableRow>
-                            <TableCell class="font-medium">{{ estancia.persona.nombres }} {{ estancia.persona.apellido_paterno }}</TableCell>
+                            <TableCell class="font-medium" :class="{ 'pl-8': !estancia.isTitular }">
+                                <span v-if="!estancia.isTitular" class="text-gray-400">↳ </span>
+                                {{ estancia.persona.nombres }} {{ estancia.persona.apellido_paterno }}
+                            </TableCell>
                             <TableCell>{{ estancia.persona.nro_documento }}</TableCell>
                             <TableCell>
-                                <Badge :variant="getVmtStatusVariant(estancia.estado_aprobacion_vmt)">
-                                    {{ estancia.estado_aprobacion_vmt }}
+                                <Badge :variant="getEstanciaStatusVariant(estancia.estado_estancia)">
+                                    {{ estancia.estado_estancia }}
                                 </Badge>
                             </TableCell>
                             <TableCell class="text-right">
                                 <Button @click="openReviewDialog(estancia)" size="sm">
-                                    Gestionar
+                                    Ver Detalles
                                 </Button>
                             </TableCell>
                         </TableRow>
-                        <TableRow v-if="estancia.estado_aprobacion_vmt === 'RECHAZADO' && estancia.vmt_observaciones">
-                            <TableCell colspan="4" class="p-2 bg-red-50">
-                                <p class="text-sm text-red-800"><span class="font-bold">Observaciones VMT:</span> {{ estancia.vmt_observaciones }}</p>
-                            </TableCell>
-                        </TableRow>
-                    </template>>
+                    </template>
                 </TableBody>
             </Table>
 
@@ -305,9 +297,9 @@ onMounted(() => {
     <Dialog :open="isReviewDialogOpen" @update:open="isReviewDialogOpen = false">
         <DialogContent v-if="selectedEstanciaForReview" class="sm:max-w-[600px]">
             <DialogHeader>
-                <DialogTitle>Confirmar Estancia (VMT)</DialogTitle>
+                <DialogTitle>Detalles de la Estancia</DialogTitle>
                 <DialogDescription>
-                    Gestionar la confirmación para el huésped **{{ selectedEstanciaForReview.persona.nombres }}**.
+                    Información del huésped **{{ selectedEstanciaForReview.persona.nombres }}**.
                 </DialogDescription>
             </DialogHeader>
 
@@ -326,36 +318,17 @@ onMounted(() => {
                         <p class="font-semibold">{{ selectedEstanciaForReview.persona.nacionalidad?.pais || 'N/A' }}</p>
                     </div>
                     <div>
-                        <Label>Estado Actual (VMT)</Label>
-                        <p class="font-semibold">{{ selectedEstanciaForReview.estado_aprobacion_vmt }}</p>
+                        <Label>Parentesco</Label>
+                        <p class="font-semibold">{{ selectedEstanciaForReview.tipo_parentesco || 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <Label>Estado de la Estancia</Label>
+                        <Badge :variant="getEstanciaStatusVariant(selectedEstanciaForReview.estado_estancia)">
+                            {{ selectedEstanciaForReview.estado_estancia }}
+                        </Badge>
                     </div>
                 </div>
             </div>
-
-            <!-- Acciones para estado PENDIENTE -->
-            <div v-if="selectedEstanciaForReview.estado_aprobacion_vmt === 'PENDIENTE'">
-                <div class="space-y-2">
-                    <Label for="rejection-reason">Observaciones (requerido si se rechaza)</Label>
-                    <Textarea id="rejection-reason" v-model="rejectionReason" placeholder="En caso de rechazo, ingrese el motivo aquí..." />
-                </div>
-
-                <DialogFooter>
-                    <div class="space-y-2">
-                    <Button variant="outline" @click="aprobarVmt(selectedEstanciaForReview.id)">Aprobar</Button>
-                    <Button variant="destructive" @click="rechazarVmt(selectedEstanciaForReview.id)" :disabled="!rejectionReason.trim()">Rechazar</Button>
-                    </div>
-                </DialogFooter>
-
-            </div>
-
-            <!-- Info para estado RECHAZADO -->
-            <div v-if="selectedEstanciaForReview.estado_aprobacion_vmt === 'RECHAZADO'">
-                <div class="space-y-2">
-                    <Label>Observaciones de Rechazo (VMT)</Label>
-                    <p class="p-2 text-sm text-red-800 bg-red-100 rounded">{{ selectedEstanciaForReview.vmt_observaciones }}</p>
-                </div>
-            </div>
-
         </DialogContent>
     </Dialog>
 

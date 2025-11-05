@@ -46,6 +46,12 @@ interface Departamento {
     nombre: string;
 }
 
+interface Sucursal {
+    nombre_sucursal: string;
+    ciudad: string;
+    departamento: Departamento;
+}
+
 interface Lote {
     id: number;
     fecha_lote: string;
@@ -68,7 +74,11 @@ const props = defineProps({
   fecha: {
     type: String,
     required: true,
-  }
+  },
+  sucursalUsuario: {
+    type: Object as PropType<Sucursal | null>,
+    default: null,
+  },
 });
 
 // --- State ---
@@ -112,7 +122,7 @@ function filtrarPorFecha(newDate: string) {
 
 async function submitLote() {
     if (!canSubmitLote.value || !props.lote) return;
-
+    console.log('Enviando lote:', props.lote);
     if (confirm('¿Está seguro de que desea cerrar y enviar el reporte del día? Esta acción no se puede deshacer.')) {
         try {
             await axios.put(`/lotes/${props.lote.id}/enviar-gad`);
@@ -184,8 +194,13 @@ function getBadgeVariant(estado: string) {
                     <div class="flex flex-row items-start justify-between">
                         <div>
                             <CardTitle>Listado de Estancias</CardTitle>
-                            <CardDescription v-if="lote" class="mt-2">
-                                {{ lote.establecimiento.razon_social }} | {{ lote.departamento.nombre }}
+                            <CardDescription v-if="lote || sucursalUsuario" class="mt-2">
+                                <span v-if="sucursalUsuario">
+                                    {{ sucursalUsuario.nombre_sucursal }} | {{ sucursalUsuario.ciudad }}
+                                </span>
+                                <span v-else-if="lote">
+                                    {{ lote.establecimiento.razon_social }} | {{ lote.departamento.nombre }}
+                                </span>
                             </CardDescription>
                         </div>
                         <div class="flex items-center gap-4">
@@ -227,7 +242,7 @@ function getBadgeVariant(estado: string) {
                                         </TableCell>
                                         <TableCell class="text-right">
                                             <Button @click="openDetailsModal(titular)" size="sm" :disabled="titular.estado_estancia !== 'ACTIVA'">
-                                                Gestionar Salida
+                                                Ver
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -287,7 +302,6 @@ function getBadgeVariant(estado: string) {
                 </div>
 
                 <DialogFooter class="justify-between">
-                    <Button variant="destructive" @click="submitCancel">Cancelar Estancia</Button>
                     <div class="flex gap-2">
                         <Button variant="outline" @click="isModalOpen = false">Cerrar</Button>
                         <Button @click="submitCheckout">Registrar Salida</Button>

@@ -22,12 +22,15 @@ class Lote extends Model
         'fecha_lote',
         'estado_lote',
         'establecimiento_id',
+        'sucursal_id',
         'departamento_id',
         'usuario_registra_id',
         'operador_envio_id',
-        'fecha_envio_operador',
         'fecha_envio_gad',
-        'fecha_envio_vmt',
+        'fecha_envio_nacional',
+        'aprobador_gad_id',
+        'fecha_envio_completado',
+        'aprobador_nacional_id',
     ];
 
     /**
@@ -79,5 +82,10 @@ class Lote extends Model
     public function estancias(): HasMany
     {
         return $this->hasMany(Estancia::class, 'lote_id');
+    }
+
+    public function sucursales()
+    {
+        return $this->hasMany(Sucursal::class, 'id_casa_matriz', 'establecimiento_id');
     }
 }

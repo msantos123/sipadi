@@ -1,4 +1,3 @@
-
 export interface Departamento {
   id: number
   nombre: string
@@ -38,14 +37,12 @@ export interface Persona {
 
 export interface Reserva {
   id: number
-  persona_id: number
-  fecha_reserva: string
-  check_in: string
-  check_out: string
-  numero_adultos: number
-  numero_ninos: number
-  estado: 'confirmada' | 'cancelada' | 'pendiente'
-  persona?: Persona
+  codigo_reserva: number
+  establecimiento_id: string
+  sucursal_id: string
+  usuario_registra_id: string
+  fecha_entrada: number
+  fecha_salida: number
 }
 
 export interface Estancia {
@@ -58,14 +55,68 @@ export interface Estancia {
   reserva?: Reserva
 }
 
-// Props para componentes de Inertia
-export interface PageProps {
-  auth: {
-    user: {
-      id: number
-      name: string
-      email: string
-    }
-  }
-  // Aquí se pueden agregar otras props que vengan de Laravel
+// Types from index.d.ts
+export interface Sucursal {
+    id_sucursal: number;
+    nombre_sucursal: string;
+    ciudad: string;
+    direccion_sucursal: string;
+}
+
+export interface Establecimiento {
+    id_establecimiento: number;
+    codigo: string;
+    razon_social: string;
+    ciudad: string;
+    direccion_establecimiento: string;
+    id_departamento: number;
+    sucursales?: Sucursal | null;
+}
+
+export interface User {
+    id: number;
+    nombres: string;
+    apellido_paterno: string;
+    apellido_materno: string | null;
+    ci: string;
+    celular: string | null;
+    email: string;
+    avatar?: string;
+    email_verified_at: string | null;
+    created_at: string;
+    updated_at: string;
+    nacionalidad_id: number | null;
+    departamento_id: number | null;
+    municipio_id: number | null;
+    establecimiento_id: number | null;
+    sucursal_id: number | null;
+    establecimiento?: Establecimiento;
+    sucursal?: Sucursal;
+    permissions: Permissions;
+    departamento: Departamento;
+}
+
+export interface Auth {
+    user: User;
+}
+
+export type AppPageProps<
+    T extends Record<string, unknown> = Record<string, unknown>,
+> = T & {
+    name: string;
+    quote: { message: string; author: string };
+    auth: Auth;
+    sidebarOpen: boolean;
+};
+
+export interface Role {
+    id: number;
+    name: string;
+}
+
+export interface TipoCuarto {
+    id: number;
+    nombre: string;
+    nro_habitaciones: number;
+    nro_personas: number;
 }

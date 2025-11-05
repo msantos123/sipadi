@@ -19,5 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call(NacionalidadDepartamentosMunicipiosSeeder::class);
         $this->call(RolesYPermisosSeeder::class);
         $this->call(PersonasSeeder::class);
+        //$this->call(HabitacionesSeeder::class);
+        //$this->call(LotesReservasEstanciasSeeder::class);
     }
 }

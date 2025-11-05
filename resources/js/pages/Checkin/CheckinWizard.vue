@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import type { Nacionalidad, Municipio, Departamento } from '@/types'
+import type { Nacionalidad, Municipio, Departamento, TipoCuarto } from '@/types'
 
 // Importa los componentes de cada paso
 import Step1Reserva from './Step1Reserva.vue'
@@ -32,7 +32,8 @@ onMounted(() => {
 const props = defineProps({
   nacionalidades: Array as () => Nacionalidad[],
   departamentos: Array as () => Departamento[],
-  municipios: Array as () => Municipio[]
+  municipios: Array as () => Municipio[],
+  tipoCuartos: Array as () => TipoCuarto[],
 })
 
 const steps = [
@@ -65,8 +66,7 @@ async function submitCheckin() {
   isSubmitting.value = true;
   const payload = {
     reserva: checkinStore.reserva,
-    titular: checkinStore.titular,
-    dependientes: checkinStore.dependientes
+    grupos: checkinStore.grupos
   };
   console.log('Enviando payload:', payload);
 
@@ -112,7 +112,7 @@ async function submitCheckin() {
       <CardTitle>Registro de Huéspedes (Paso {{ currentStep }} de {{ steps.length }})</CardTitle>
     </CardHeader>
     <CardContent>
-      <component :is="currentStepComponent" ref="stepComponentRef" :nacionalidades="nacionalidades" :departamentos="departamentos" :municipios="municipios" />
+      <component :is="currentStepComponent" ref="stepComponentRef" :nacionalidades="nacionalidades" :departamentos="departamentos" :municipios="municipios" :tipoCuartos="tipoCuartos" />
     </CardContent>
     <CardFooter class="flex justify-between mt-6">
       <Button variant="outline" @click="prevStep" :disabled="currentStep === 1 || isSubmitting">

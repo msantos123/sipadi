@@ -21,14 +21,7 @@ class Estancia extends Model
         'es_titular',
         'tipo_parentesco',
         'lote_id',
-        'estado_aprobacion_gad',
-        'gad_usuario_id',
-        'gad_fecha_aprobacion',
-        'gad_observaciones',
-        'estado_aprobacion_vmt',
-        'vmt_usuario_id',
-        'vmt_fecha_aprobacion',
-        'vmt_observaciones',
+        'tipo_cuarto_id',
     ];
 
     protected $casts = [
@@ -68,5 +61,10 @@ class Estancia extends Model
     {
         $query->where('estado_aprobacion_gad', 'APROBADO')
               ->where('estado_aprobacion_vmt', 'PENDIENTE');
+    }
+
+    public function tipoCuarto()
+    {
+        return $this->belongsTo(TipoCuarto::class, 'tipo_cuarto_id');
     }
 }

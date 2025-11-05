@@ -27,18 +27,8 @@ return new class extends Migration
             // En la tabla 'estancias'
             $table->foreignId('lote_id')->nullable()->constrained('lotes')->onDelete('cascade'); // Si se borra un lote, se borran sus estancias
 
-            // Nivel 1: Aprobación GAD
-            $table->enum('estado_aprobacion_gad', ['PENDIENTE', 'APROBADO', 'RECHAZADO'])->default('PENDIENTE');
-            $table->foreignId('gad_usuario_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('gad_fecha_aprobacion')->nullable();
-            $table->text('gad_observaciones')->nullable();
-
-            // Nivel 2: Aprobación VMT
-            $table->enum('estado_aprobacion_vmt', ['EN_ESPERA', 'PENDIENTE', 'APROBADO', 'RECHAZADO'])->default('EN_ESPERA');
-            $table->foreignId('vmt_usuario_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamp('vmt_fecha_aprobacion')->nullable();
-            $table->text('vmt_observaciones')->nullable();
-
+            //con la tabla tipo de cuarto
+            $table->foreignId('tipo_cuarto_id')->constrained('tipo_cuartos')->onDelete('restrict'); // Línea añadida
             $table->timestamps();
         });
     }

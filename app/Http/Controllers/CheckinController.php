@@ -9,6 +9,7 @@ use App\Models\Municipio;
 use App\Models\Nacionalidad;
 use App\Models\Persona;
 use App\Models\Reserva;
+USE App\Models\TipoCuarto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -23,12 +24,15 @@ class CheckinController extends Controller
     {
         $fecha = $request->input('fecha', now()->toDateString());
 
-        $user = auth()->user();
+        $user = auth()->user()->load('sucursal');
         // Encontrar el lote para el establecimiento y fecha seleccionada, con sus relaciones
         $lote = Lote::with(['establecimiento', 'departamento'])
                     ->where('establecimiento_id', $user->establecimiento_id)
+                    ->where('sucursal_id', $user->sucursal_id ?? null)
                     ->where('fecha_lote', $fecha)
                     ->first();
+        //dd($user);
+
 
         // Obtener las estancias de ese lote
         $estancias = [];
@@ -44,6 +48,7 @@ class CheckinController extends Controller
             'estancias' => $estancias,
             'lote' => $lote,
             'fecha' => $fecha, // Pasamos la fecha a la vista para el filtro
+            'sucursalUsuario' => $user->sucursal,
         ]);
     }
 
@@ -56,6 +61,7 @@ class CheckinController extends Controller
             'nacionalidades' => Nacionalidad::all(),
             'departamentos' => Departamento::all(),
             'municipios' => Municipio::all(),
+            'tipoCuartos' => TipoCuarto::all(),
         ]);
     }
 
@@ -67,17 +73,23 @@ class CheckinController extends Controller
         // 1. Validación de Datos
         $validator = Validator::make($request->all(), [
             'reserva.codigo_reserva' => 'nullable|string|max:100',
-            'reserva.establecimiento_id' => 'nullable',//|exists:establecimientos,id',
+            'reserva.departamento_id' => 'required',
+            'reserva.establecimiento_id' => 'nullable', // Se quitó la regla 'exists' que causaba el error de tabla no encontrada
+            'reserva.sucursal_id' => 'nullable', // Se quitó la regla 'exists' que causaba el error de tabla no encontrada
             'reserva.fecha_entrada' => 'required|date',
             'reserva.fecha_salida' => 'required|date|after_or_equal:reserva.fecha_entrada',
-            'reserva.nro_cuarto' => 'required|string|max:10',
-            'titular' => 'required|array',
-            'titular.nro_documento' => 'required|string|max:50',
-            'titular.nombres' => 'required|string|max:100',
-            'titular.apellido_paterno' => 'required|string|max:100',
-            'dependientes' => 'nullable|array',
-            'dependientes.*.nro_documento' => 'required_with:dependientes|string|max:50',
-            'dependientes.*.parentesco' => 'required_with:dependientes|string|max:50',
+
+            'grupos' => 'required|array|min:1',
+            'grupos.*.nro_cuarto' => 'required|string|max:10',
+            'grupos.*.tipo_cuarto_id' => 'required', // Se omite 'exists' para evitar posibles errores de BD
+            'grupos.*.titular' => 'required|array',
+            'grupos.*.titular.nro_documento' => 'required|string|max:50',
+            'grupos.*.titular.nombres' => 'required|string|max:100',
+            'grupos.*.titular.apellido_paterno' => 'required|string|max:100',
+
+            'grupos.*.dependientes' => 'nullable|array',
+            'grupos.*.dependientes.*.nro_documento' => 'required|string|max:50',
+            'grupos.*.dependientes.*.parentesco' => 'required|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -88,74 +100,84 @@ class CheckinController extends Controller
 
         try {
             $result = DB::transaction(function () use ($validated) {
-                // 2. Obtener o crear el Lote para el día y establecimiento actual
                 $user = auth()->user();
+
                 $lote = Lote::firstOrCreate(
-                    [
-                        // Un lote es único para un establecimiento en una fecha específica.
-                        'establecimiento_id' => $user->establecimiento_id,
-                        'fecha_lote' => now()->toDateString(),
-                    ],
-                    [
-                        // Atributos a establecer si se crea un nuevo lote.
-                        'departamento_id' => $user->departamento_id,
-                        'usuario_registra_id' => $user->id, // El primer usuario que hace check-in en el día crea el lote.
-                        // 'estado_lote' se establece por defecto desde la migración.
-                    ]
+                    ['establecimiento_id' => $validated['reserva']['establecimiento_id'],'sucursal_id' => $validated['reserva']['sucursal_id'], 'fecha_lote' => now()->toDateString()],
+                    ['departamento_id' => $validated['reserva']['departamento_id'], 'usuario_registra_id' => $user->id]
                 );
 
-                // 3. Crear la Reserva
                 $reserva = Reserva::create([
-                    'usuario_registra_id' => auth()->id(),
-                    'fecha_entrada' => $validated['reserva']['fecha_entrada'],
+                    'usuario_registra_id' => $user->id,
+                    'fecha_entrada' => now(),
                     'fecha_salida' => $validated['reserva']['fecha_salida'],
                     'establecimiento_id' => $validated['reserva']['establecimiento_id'] ?? null,
+                    'sucursal_id' => $validated['reserva']['sucursal_id'] ?? null,
                     'codigo_reserva' => $validated['reserva']['codigo_reserva'] ?? null,
                 ]);
 
-                // 4. Gestionar Persona Titular
-                $titularData = $validated['titular'];
-                $personaTitular = Persona::updateOrCreate(
-                    ['nro_documento' => $titularData['nro_documento']],
-                    $titularData
-                );
+                $personaFields = [
+                    'nombres', 'apellido_paterno', 'apellido_materno', 'tipo_documento', 'nro_documento',
+                    'complemento', 'fecha_nacimiento', 'nacionalidad_id', 'departamento_id', 'municipio_id',
+                    'ciudad_origen', 'sexo', 'estado_civil', 'ocupacion'
+                ];
 
-                // 5. Crear Estancia del Titular
-                $estanciaTitular = Estancia::create([
-                    'lote_id' => $lote->id,
-                    'reserva_id' => $reserva->id,
-                    'persona_id' => $personaTitular->id,
-                    'nro_cuarto' => $validated['reserva']['nro_cuarto'],
-                    'fecha_hora_ingreso' => now(),
-                    'es_titular' => true,
-                    'tipo_parentesco' => null,
-                    'responsable_id' => null,
-                ]);
+                foreach ($validated['grupos'] as $grupoData) {
+                    $titularData = $grupoData['titular'];
+                    $personaTitularPayload = [];
+                    foreach ($personaFields as $field) {
+                        if (array_key_exists($field, $titularData)) {
+                            $personaTitularPayload[$field] = $titularData[$field];
+                        }
+                    }
 
-                // 6. Gestionar Acompañantes
-                foreach ($validated['dependientes'] ?? [] as $dependienteData) {
-                    $personaDependiente = Persona::updateOrCreate(
-                        ['nro_documento' => $dependienteData['nro_documento']],
-                        $dependienteData
+                    $personaTitular = Persona::updateOrCreate(
+                        ['nro_documento' => $titularData['nro_documento']],
+                        $personaTitularPayload
                     );
 
-                    Estancia::create([
+                    $estanciaTitular = Estancia::create([
                         'lote_id' => $lote->id,
                         'reserva_id' => $reserva->id,
-                        'persona_id' => $personaDependiente->id,
-                        'responsable_id' => $estanciaTitular->id,
-                        'nro_cuarto' => $validated['reserva']['nro_cuarto'],
+                        'persona_id' => $personaTitular->id,
+                        'nro_cuarto' => $grupoData['nro_cuarto'],
+                        'tipo_cuarto_id' => $grupoData['tipo_cuarto_id'],
                         'fecha_hora_ingreso' => now(),
-                        'es_titular' => false,
-                        'tipo_parentesco' => $dependienteData['parentesco'],
+                        'es_titular' => true,
                     ]);
+
+                    foreach ($grupoData['dependientes'] ?? [] as $dependienteData) {
+                        $personaDependientePayload = [];
+                        foreach ($personaFields as $field) {
+                            if (array_key_exists($field, $dependienteData)) {
+                                $personaDependientePayload[$field] = $dependienteData[$field];
+                            }
+                        }
+
+                        $personaDependiente = Persona::updateOrCreate(
+                            ['nro_documento' => $dependienteData['nro_documento']],
+                            $personaDependientePayload
+                        );
+
+                        Estancia::create([
+                            'lote_id' => $lote->id,
+                            'reserva_id' => $reserva->id,
+                            'persona_id' => $personaDependiente->id,
+                            'responsable_id' => $estanciaTitular->id,
+                            'nro_cuarto' => $grupoData['nro_cuarto'],
+                            'tipo_cuarto_id' => $grupoData['tipo_cuarto_id'],
+                            'fecha_hora_ingreso' => now(),
+                            'es_titular' => false,
+                            'tipo_parentesco' => $dependienteData['parentesco'],
+                        ]);
+                    }
                 }
 
                 return $reserva;
             });
 
             return response()->json([
-                'message' => 'Check-in registrado exitosamente.',
+                'message' => 'Check-in registrado exitosamente con ' . count($validated['grupos']) . ' grupo(s).',
                 'reserva_id' => $result->id,
             ], 201);
 

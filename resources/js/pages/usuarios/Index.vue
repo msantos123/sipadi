@@ -48,7 +48,17 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const page = usePage<PageProps & { usuarios: Paginator, search?: string }>();
+const page = usePage<PageProps & { auth: { user: { permissions: string[] } } } & { usuarios: Paginator, search?: string }>();
+
+// Helper function to check permissions
+const can = (permission: string) => {
+    const user = page.props.auth.user;
+    console.log(user);
+    if (!user || !user.permissions) {
+        return false;
+    }
+    return user.permissions.includes(permission);
+};
 
 // 'usuarios' ahora apunta a la data del paginador
 const usuarios = computed(() => page.props.usuarios.data || []);
@@ -90,9 +100,17 @@ const breadcrumbs = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <div class="flex">
+            <div class="flex" v-if="can('gestionar-empleados')">
                 <Button as-child size="sm" class="bg-indigo-500 text-white hover:bg-indigo-700">
                     <Link href="/usuarios/create">
+                        <CirclePlus class="w-4 h-4 mr-2" />
+                        Nuevo Empleado
+                    </Link>
+                </Button>
+            </div>
+            <div class="flex" v-if="can('gestionar-usuarios')">
+                <Button as-child size="sm" class="bg-indigo-500 text-white hover:bg-indigo-700">
+                    <Link href="/usuarios/crear-usuario">
                         <CirclePlus class="w-4 h-4 mr-2" />
                         Nuevo Usuario
                     </Link>

@@ -40,12 +40,28 @@ class HandleInertiaRequests extends Middleware
 
         $user = $request->user();
 
+        if ($user) {
+            $user->load('establecimiento.sucursales', 'departamento', 'municipio', 'sucursal');
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $user ? $user->load('establecimiento', 'departamento', 'municipio') : null,
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'apellido_paterno' => $user->apellido_paterno,
+                    'apellido_materno' => $user->apellido_materno,
+                    'nombres' => $user->nombres,
+                    'establecimiento' => $user->establecimiento,
+                    'sucursal' => $user->sucursal,
+                    'departamento' => $user->departamento,
+                    'municipio' => $user->municipio,
+                    'roles' => $user->getRoleNames(),
+                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

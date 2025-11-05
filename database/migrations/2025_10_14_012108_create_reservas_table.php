@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('reservas', function (Blueprint $table) {
             $table->id();
             $table->string('codigo_reserva', 20)->unique()->nullable();
-            $table->foreignId('establecimiento_id')->nullable();
+            $table->foreignId('establecimiento_id');
+            $table->foreignId('sucursal_id')->nullable();
             $table->foreignId('usuario_registra_id')->constrained('users');
             $table->date('fecha_entrada');
             $table->date('fecha_salida');

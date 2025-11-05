@@ -76,7 +76,7 @@ class SideturSyncService
 
         // 3.2. Mapeo de Rol
         $rolId = $this->getSipadiRolId($sideturUser);
-
+        Log::info('numero de usuario.', ['id' => $rolId]);
         // 3.3. Mapeo de Nacionalidad (case-insensitive)
         $nacionalidadId = null;
         if ($sideturUser->nacionalidad) {
@@ -117,7 +117,7 @@ class SideturSyncService
     {
         // Asumimos que el ID del grupo en Sidetur corresponde directamente al rol_id en Sipadi.
         $group = $sideturUser->groups()->first();
-
+        Log::info('numero de usuario de la funcion.', ['id' => $group]);
         // Si el usuario tiene un grupo, devolvemos su ID.
         if ($group) {
             return $group->id;

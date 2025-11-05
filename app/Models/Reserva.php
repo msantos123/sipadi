@@ -14,6 +14,7 @@ class Reserva extends Model
     protected $fillable = [
         'codigo_reserva',
         'establecimiento_id',
+        'sucursal_id',
         'usuario_registra_id',
         'fecha_entrada',
         'fecha_salida',
@@ -45,6 +46,6 @@ class Reserva extends Model
      */
     public function establecimiento(): BelongsTo
     {
-        return $this->belongsTo(Establecimiento::class);
+        return $this->belongsTo(Establecimiento::class, 'establecimiento_id', 'id_establecimiento');
     }
 }

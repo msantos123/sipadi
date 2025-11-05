@@ -32,10 +32,9 @@ class LoteController extends Controller
         if ($lote->estado_lote !== 'PENDIENTE_DE_ENVIO') {
             return response()->json(['message' => 'Este lote no se puede enviar. Se esperaba el estado "PENDIENTE_DE_ENVIO", pero se encontró el estado "'.$lote->estado_lote.'".'], 422);
         }
-
         $lote->update([
             'estado_lote' => 'EN_REVISION_GAD',
-            'fecha_envio_operador' => now(),
+            'fecha_envio_gad' => now(),
         ]);
 
         return response()->json(['message' => 'Lote enviado a GAD para su revisión.']);
@@ -46,7 +45,10 @@ class LoteController extends Controller
     public function revisionGad()
     {
         // TODO: Añadir autorización para que solo usuarios GAD puedan ver esto.
-        $lotes = Lote::where('estado_lote', 'EN_REVISION_GAD')
+        $lotes = Lote::whereIn('estado_lote', ['EN_REVISION_GAD', 'EN_REVISION_VMT', 'COMPLETADO'])
+
+            ->with('establecimiento')
+            ->with('sucursales')
             ->with('usuarioRegistra') // Carga la relación para obtener el nombre
             ->orderBy('fecha_lote', 'desc')
             ->get();
@@ -78,23 +80,10 @@ class LoteController extends Controller
             return response()->json(['message' => 'Este lote no está en revisión por GAD.'], 422);
         }
 
-        // Verificar que todas las estancias han sido procesadas
-        if ($lote->estancias()->where('estado_aprobacion_gad', 'EN_ESPERA')->exists()) {
-            return response()->json(['message' => 'No todas las estancias de este lote han sido revisadas.'], 422);
-        }
-
-        DB::transaction(function () use ($lote) {
-            // Actualizar el estado del lote
-            $lote->update([
-                'estado_lote' => 'EN_REVISION_VMT',
-                'fecha_envio_gad' => now(),
-            ]);
-
-            // Actualizar las estancias aprobadas por GAD para que VMT pueda revisarlas
-            $lote->estancias()
-                ->where('estado_aprobacion_gad', 'APROBADO')
-                ->update(['estado_aprobacion_vmt' => 'PENDIENTE']);
-        });
+        $lote->update([
+            'estado_lote' => 'EN_REVISION_VMT',
+            'fecha_envio_nacional' => now(),
+        ]);
 
         return response()->json(['message' => 'Lote enviado a VMT para su revisión.']);
     }

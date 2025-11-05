@@ -26,8 +26,9 @@ return new class extends Migration
             $table->foreignId('departamento_id')->nullable()->constrained('departamentos');
             $table->foreignId('municipio_id')->nullable()->constrained('municipios');
 
-            //id establicimiento
+            //id establicimiento y sucursal
             $table->unsignedBigInteger('establecimiento_id')->nullable();
+            $table->unsignedBigInteger('sucursal_id')->nullable();
 
             $table->enum('estado', ['activo', 'inactivo'])->default('activo');
             $table->string('email', 100)->unique();
