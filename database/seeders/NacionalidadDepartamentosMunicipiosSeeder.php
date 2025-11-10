@@ -238,7 +238,7 @@ class NacionalidadDepartamentosMunicipiosSeeder extends Seeder
                 (6, 'ACHACACHI', '6M', 2),
                 (7, 'LA ASUNTA', '7M', 2),
                 (8, 'SICA SICA', '8M', 2),
-                (9, 'PUCARANI', '2M', 2),
+                (9, 'PUCARANI', '9M', 2),
                 (10, 'PALOS BLANCOS', '10M', 2),
                 (11, 'LAJA', '11M', 2),
                 (12, 'SORATA', '12M', 2),

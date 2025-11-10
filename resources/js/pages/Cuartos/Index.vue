@@ -4,9 +4,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
@@ -17,7 +15,7 @@ const props = defineProps({
         required: true,
     },
     cuartos: {
-        type: Array as () => Array<{ id: number; nombre: string; nro_habitaciones: number; nro_personas: number }>,
+        type: Array as () => Array<{ nombre: string; nro_habitaciones: number; nro_personas: number }>,
         required: true,
     },
     selected_location_id: {
@@ -26,23 +24,23 @@ const props = defineProps({
     },
 });
 
-const isCreateModalOpen = ref(false);
 const selectedLocation = ref(props.selected_location_id);
 
 const form = useForm({
-    nombre: '',
-    nro_habitaciones: 1,
-    nro_personas: 1,
+    cuartos: props.cuartos.map(c => ({ ...c })),
     location_id: props.selected_location_id,
 });
 
 watch(selectedLocation, (newValue) => {
-    form.location_id = newValue;
     router.get('/cuartos', {
         location_id: newValue,
     }, {
         preserveState: true,
         replace: true,
+        onSuccess: (page) => {
+            form.cuartos = (page.props.cuartos as typeof props.cuartos).map(c => ({ ...c }));
+            form.location_id = page.props.selected_location_id as string;
+        },
     });
 });
 
@@ -50,8 +48,7 @@ const submit = () => {
     form.post('/cuartos', {
         preserveScroll: true,
         onSuccess: () => {
-            isCreateModalOpen.value = false;
-            form.reset();
+            // Opcional: mostrar notificación de éxito
         },
     });
 };
@@ -80,82 +77,35 @@ const submit = () => {
             </div>
 
             <div v-if="selectedLocation" class="mt-8">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">Cuartos Registrados</h2>
-                    <Dialog :open="isCreateModalOpen" @update:open="isCreateModalOpen = $event">
-                        <DialogTrigger as-child>
-                            <Button :disabled="!selectedLocation">
-                                Agregar Cuarto
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent class="sm:max-w-[425px]">
-                            <DialogHeader>
-                                <DialogTitle>Agregar Nuevo Cuarto</DialogTitle>
-                                <DialogDescription>
-                                    Complete los detalles del nuevo tipo de cuarto. Se asociará a la ubicación seleccionada.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form @submit.prevent="submit">
-                                <div class="grid gap-4 py-4">
-                                    <div class="grid grid-cols-4 items-center gap-4">
-                                        <Label for="nombre" class="text-right">Nombre</Label>
-                                        <div class="col-span-3">
-                                            <Input id="nombre" v-model="form.nombre" class="w-full" />
-                                            <InputError class="mt-2" :message="form.errors.nombre" />
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-4 items-center gap-4">
-                                        <Label for="nro_habitaciones" class="text-right">Nro. Habitaciones</Label>
-                                        <div class="col-span-3">
-                                            <Input id="nro_habitaciones" v-model="form.nro_habitaciones" type="number" min="1" class="w-full" />
-                                            <InputError class="mt-2" :message="form.errors.nro_habitaciones" />
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-4 items-center gap-4">
-                                        <Label for="nro_personas" class="text-right">Nro. Personas</Label>
-                                        <div class="col-span-3">
-                                            <Input id="nro_personas" v-model="form.nro_personas" type="number" min="1" class="w-full" />
-                                            <InputError class="mt-2" :message="form.errors.nro_personas" />
-                                        </div>
-                                    </div>
+                <form @submit.prevent="submit">
+                    <div class="space-y-6">
+                        <div v-for="(cuarto, index) in form.cuartos" :key="index" class="p-4 border rounded-lg">
+                            <h3 class="text-lg font-medium mb-4">{{ cuarto.nombre }}</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label :for="`nro_habitaciones_${index}`">Nro. de Habitaciones</Label>
+                                    <Input :id="`nro_habitaciones_${index}`" v-model="cuarto.nro_habitaciones" type="number" min="0" class="w-full mt-1" />
+                                    <InputError class="mt-2" :message="form.errors[`cuartos.${index}.nro_habitaciones`]" />
                                 </div>
-                                <DialogFooter>
-                                    <Button type="submit" :disabled="form.processing">Guardar Cuarto</Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-                <div class="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre del Cuarto</TableHead>
-                                <TableHead>Nro. de Habitaciones</TableHead>
-                                <TableHead>Capacidad de Personas</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <template v-if="cuartos.length > 0">
-                                <TableRow v-for="cuarto in cuartos" :key="cuarto.id">
-                                    <TableCell>{{ cuarto.nombre }}</TableCell>
-                                    <TableCell>{{ cuarto.nro_habitaciones }}</TableCell>
-                                    <TableCell>{{ cuarto.nro_personas }}</TableCell>
-                                </TableRow>
-                            </template>
-                            <template v-else>
-                                <TableRow>
-                                    <TableCell colspan="3" class="text-center py-8">
-                                        No hay cuartos registrados para esta ubicación. Puede agregar uno nuevo.
-                                    </TableCell>
-                                </TableRow>
-                            </template>
-                        </TableBody>
-                    </Table>
-                </div>
+                                <div>
+                                    <Label :for="`nro_personas_${index}`">Capacidad de Personas</Label>
+                                    <Input :id="`nro_personas_${index}`" v-model="cuarto.nro_personas" type="number" min="0" class="w-full mt-1" />
+                                    <InputError class="mt-2" :message="form.errors[`cuartos.${index}.nro_personas`]" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <Button type="submit" :disabled="form.processing">
+                            Guardar Cambios
+                        </Button>
+                    </div>
+                </form>
             </div>
+
             <div v-else class="mt-8 text-center py-12 border-2 border-dashed rounded-lg">
-                 <p class="text-gray-500">Por favor, seleccione un establecimiento o sucursal para ver los cuartos.</p>
+                 <p class="text-gray-500">Por favor, seleccione un establecimiento o sucursal para gestionar los tipos de cuarto.</p>
             </div>
         </div>
     </AppLayout>

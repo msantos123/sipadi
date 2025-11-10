@@ -16,6 +16,11 @@ class Solicitud extends Model
         'usuario_creador_id',
     ];
 
+    public function usuarioCreador()
+    {
+        return $this->belongsTo(User::class, 'usuario_creador_id');
+    }
+
     public function detallesOrdenJudicial()
     {
         return $this->hasOne(DetallesOrdenJudicial::class);

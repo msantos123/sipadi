@@ -6,7 +6,9 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\EstanciaController;
 use App\Http\Controllers\LoteController;
+use App\Http\Controllers\EstadisticasController;
 use App\Http\Controllers\ConfirmacionController;
+use App\Http\Controllers\CsvUploadController;
 use App\Http\Controllers\TipoCuartoController;
 use App\Http\Controllers\Settings\RoleController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +23,8 @@ Route::get('/', function () {
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/solicitudes/{solicitud}/download', [SolicitudController::class, 'download'])->name('solicitudes.download');
 
 Route::get('usuarios/index', [UsuariosController::class, 'index'])->middleware(['auth', 'verified'])->name('usuarios.index');
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -73,11 +77,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('settings/roles', RoleController::class)->except(['show'])->name('index', 'roles.index');
 
     Route::get('/solicitud/create', [SolicitudController::class, 'create'])->name('solicitud.create');
-
     Route::post('/solicitudes', [SolicitudController::class, 'store'])->name('solicitudes.store');
-    Route::get('/solicitudes/{solicitud}/download', [SolicitudController::class, 'download'])->name('solicitudes.download');
+    Route::get('/solicitudes', [SolicitudController::class, 'index'])->name('solicitudes.index');
 
-});
+        Route::get('/csv-upload', [CsvUploadController::class, 'create'])->name('csv.upload.create');
+
+        Route::post('/csv-upload', [CsvUploadController::class, 'store'])->name('csv.upload.store');
+
+    
+
+        // Rutas para Reportes
+
+        Route::get('/reportes', [\App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index');
+
+        Route::post('/reporte/generar', [\App\Http\Controllers\ReporteController::class, 'generarReporte'])->name('reporte.generar');
+
+        Route::get('/reporte/generar-excel', [\App\Http\Controllers\ReporteController::class, 'generarExcel'])->name('reporte.excel');
+
+    
+
+        });
+
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

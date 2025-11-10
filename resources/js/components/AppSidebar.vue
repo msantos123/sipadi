@@ -84,9 +84,19 @@ const mainNavItems: NavItemWithPermission[] = [
         icon: User,
         permission: 'ver-parte-diario-nacional',
     },
-        {
-        title: 'Solicitudes',
-        href: '/solicitud/create',
+    {
+        title: 'Ver Solicitudes Informacion',
+        href: '/solicitudes',
+        icon: User,
+    },
+    {
+        title: 'Subir Informacion',
+        href: '/csv-upload',
+        icon: User,
+    },
+    {
+        title: 'Reportes',
+        href: '/reportes',
         icon: User,
     },
 ];

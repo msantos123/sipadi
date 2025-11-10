@@ -53,6 +53,14 @@ class Lote extends Model
     }
 
     /**
+     * Un Lote pertenece a una Sucursal.
+     */
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
+    }
+
+    /**
      * Un Lote pertenece a un Departamento.
      */
     public function departamento(): BelongsTo

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import FormOrdenJudicial from '@/pages/Solicitudes/Partials/FormOrdenJudicial.vue';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import AlertError from '@/components/AlertError.vue';
 
 type DetalleType = 'orden_judicial' | 'orden_oficial' | 'requerimiento_fiscal';
 
@@ -23,6 +24,12 @@ const formOrdenJudicial = ref<InstanceType<typeof FormOrdenJudicial> | null>(nul
 const formOrdenOficial = ref<InstanceType<typeof FormOrdenOficial> | null>(null);
 const formRequerimientoFiscal = ref<InstanceType<typeof FormRequerimientoFiscal> | null>(null);
 
+const solicitudId = ref<number | null>(null);
+const solicitudMessage = ref<string | null>(null);
+const errorMessage = ref<string | null>(null);
+const hasResults = ref<boolean>(false);
+const isSubmitting = ref(false);
+
 const handleFileChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     if (target.files) {
@@ -30,44 +37,76 @@ const handleFileChange = (event: Event) => {
     }
 };
 
-const submit = () => {
+const submit = async () => {
     if (!pdfFile.value) {
-        alert('Por favor, sube un archivo PDF.');
+        errorMessage.value = 'Por favor, sube un archivo PDF.';
         return;
     }
 
-    const data: Record<string, any> = {
-        detalleType: detalleType.value,
-        pdfFile: pdfFile.value,
-        persona_buscada_nombre: persona_buscada_nombre.value,
-        persona_buscada_identificacion: persona_buscada_identificacion.value,
-        fecha_solicitud: fecha_solicitud.value,
-    };
+    isSubmitting.value = true;
+    errorMessage.value = null;
+    solicitudMessage.value = null;
+
+    const formData = new FormData();
+    formData.append('detalleType', detalleType.value);
+    formData.append('pdfFile', pdfFile.value);
+    formData.append('persona_buscada_nombre', persona_buscada_nombre.value);
+    formData.append('persona_buscada_identificacion', persona_buscada_identificacion.value);
+    formData.append('fecha_solicitud', fecha_solicitud.value);
+
 
     switch (detalleType.value) {
         case 'orden_judicial':
             if (formOrdenJudicial.value) {
-                data.nombre_juzgado_tribunal = formOrdenJudicial.value.nombre_juzgado_tribunal;
-                data.numero_orden_judicial = formOrdenJudicial.value.numero_orden_judicial;
+                formData.append('nombre_juzgado_tribunal', formOrdenJudicial.value.nombre_juzgado_tribunal);
+                formData.append('numero_orden_judicial', formOrdenJudicial.value.numero_orden_judicial);
             }
             break;
         case 'orden_oficial':
             if (formOrdenOficial.value) {
-                data.institucion = formOrdenOficial.value.institucion;
+                formData.append('institucion', formOrdenOficial.value.institucion);
             }
             break;
         case 'requerimiento_fiscal':
             if (formRequerimientoFiscal.value) {
-                data.fiscal_apellidos_nombres = formRequerimientoFiscal.value.fiscal_apellidos_nombres;
-                data.fiscal_de_materia = formRequerimientoFiscal.value.fiscal_de_materia;
-                data.numero_de_caso = formRequerimientoFiscal.value.numero_de_caso;
-                data.solicitante_apellidos_nombres = formRequerimientoFiscal.value.solicitante_apellidos_nombres;
-                data.solicitante_identificacion = formRequerimientoFiscal.value.solicitante_identificacion;
+                formData.append('fiscal_apellidos_nombres', formRequerimientoFiscal.value.fiscal_apellidos_nombres);
+                formData.append('fiscal_de_materia', formRequerimientoFiscal.value.fiscal_de_materia);
+                formData.append('numero_de_caso', formRequerimientoFiscal.value.numero_de_caso);
+                formData.append('solicitante_apellidos_nombres', formRequerimientoFiscal.value.solicitante_apellidos_nombres);
+                formData.append('solicitante_identificacion', formRequerimientoFiscal.value.solicitante_identificacion);
             }
             break;
     }
 
-    router.post('/solicitudes', data);
+    try {
+        const response = await axios.post('/solicitudes', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        if (response.data.success) {
+            solicitudId.value = response.data.solicitud_id;
+            hasResults.value = response.data.has_results;
+            solicitudMessage.value = response.data.message;
+        } else {
+            errorMessage.value = response.data.message || 'Ocurrió un error desconocido.';
+        }
+    } catch (error: any) {
+        if (error.response && error.response.data && error.response.data.message) {
+            errorMessage.value = error.response.data.message;
+        } else {
+            errorMessage.value = 'No se pudo conectar con el servidor.';
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
+};
+
+const download = () => {
+    if (solicitudId.value) {
+        window.open(`/solicitudes/${solicitudId.value}/download`, '_blank');
+    }
 };
 
 </script>
@@ -140,10 +179,25 @@ const submit = () => {
                             />
                         </div>
                     </div>
+                     <div v-if="errorMessage" class="mt-4">
+                        <AlertError :message="errorMessage" />
+                    </div>
 
-                    <div class="flex justify-end pt-4">
-                        <Button type="submit">
-                            Guardar Solicitud
+                    <div v-if="solicitudMessage" class="mt-4 p-4 bg-green-100 text-green-800 rounded-md">
+                        {{ solicitudMessage }}
+                    </div>
+
+
+                    <div class="flex justify-end pt-4 space-x-4">
+                         <Button type="submit" :disabled="isSubmitting">
+                            {{ isSubmitting ? 'Guardando...' : 'Guardar Solicitud' }}
+                        </Button>
+                        <Button
+                            v-if="solicitudId && hasResults"
+                            type="button"
+                            @click="download"
+                        >
+                            Descargar Excel
                         </Button>
                     </div>
                 </div>

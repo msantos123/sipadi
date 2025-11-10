@@ -38,7 +38,8 @@ class TipoCuartoController extends Controller
         }
 
         $selected_location_id = $request->input('location_id');
-        $cuartos = [];
+        $tiposRequeridos = ['Simple', 'Doble', 'Triple', 'Cuadruple', 'Familiar'];
+        $cuartosData = collect([]);
 
         if ($selected_location_id) {
             [$type, $id] = explode('-', $selected_location_id);
@@ -46,47 +47,64 @@ class TipoCuartoController extends Controller
             $query = TipoCuarto::query();
 
             if ($type === 'est') {
-                $query->where('establecimiento_id', $id);
+                $query->where('establecimiento_id', $id)->whereNull('sucursal_id');
             } elseif ($type === 'suc') {
                 $query->where('sucursal_id', $id);
             }
-            $cuartos = $query->get();
+            $cuartosExistentes = $query->get()->keyBy('nombre');
+
+            $cuartosData = collect($tiposRequeridos)->map(function ($nombre) use ($cuartosExistentes) {
+                $existente = $cuartosExistentes->get($nombre);
+                return [
+                    'nombre' => $nombre,
+                    'nro_habitaciones' => $existente ? $existente->nro_habitaciones : 0,
+                    'nro_personas' => $existente ? $existente->nro_personas : 0,
+                ];
+            });
         }
 
         return Inertia::render('Cuartos/Index', [
             'locations' => $locations,
-            'cuartos' => $cuartos,
+            'cuartos' => $cuartosData,
             'selected_location_id' => $selected_location_id
         ]);
     }
 
     public function store(Request $request)
     {
-        //dd($request->all());
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'nro_habitaciones' => 'required|integer|min:1',
-            'nro_personas' => 'required|integer|min:1',
+            'cuartos' => 'required|array|min:5',
+            'cuartos.*.nombre' => 'required|string',
+            'cuartos.*.nro_habitaciones' => 'required|integer|min:0',
+            'cuartos.*.nro_personas' => 'required|integer|min:0',
             'location_id' => 'required|string',
         ]);
 
         [$type, $id] = explode('-', $validated['location_id']);
 
-        $data = [
-            'nombre' => $validated['nombre'],
-            'nro_habitaciones' => $validated['nro_habitaciones'],
-            'nro_personas' => $validated['nro_personas'],
-        ];
+        foreach ($validated['cuartos'] as $cuartoData) {
+            $attributes = [
+                'nombre' => $cuartoData['nombre'],
+            ];
 
-        if ($type === 'est') {
-            $data['establecimiento_id'] = $id;
-        } elseif ($type === 'suc') {
-            $data['establecimiento_id'] = $id;
-            $data['sucursal_id'] = $id;
+            if ($type === 'est') {
+                $attributes['establecimiento_id'] = $id;
+                $attributes['sucursal_id'] = null;
+            } elseif ($type === 'suc') {
+                $sucursal = Sucursal::findOrFail($id);
+                $attributes['establecimiento_id'] = $sucursal->id_casa_matriz;
+                $attributes['sucursal_id'] = $id;
+            }
+
+            TipoCuarto::updateOrCreate(
+                $attributes,
+                [
+                    'nro_habitaciones' => $cuartoData['nro_habitaciones'],
+                    'nro_personas' => $cuartoData['nro_personas'],
+                ]
+            );
         }
 
-        TipoCuarto::create($data);
-
-        return redirect()->route('cuartos.index', ['location_id' => $validated['location_id']])->with('success', 'Cuarto agregado exitosamente.');
+        return redirect()->route('cuartos.index', ['location_id' => $validated['location_id']])->with('success', 'Tipos de cuarto guardados exitosamente.');
     }
 }

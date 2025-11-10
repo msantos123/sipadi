@@ -6,6 +6,7 @@ use App\Models\DetallesOrdenJudicial;
 use App\Models\DetallesOrdenOficial;
 use App\Models\DetallesRequerimientoFiscal;
 use App\Models\Solicitud;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,20 @@ use Rap2hpoutre\FastExcel\FastExcel;
 
 class SolicitudController extends Controller
 {
+    public function index()
+    {
+        $solicitudes = Solicitud::with([
+            'detallesOrdenJudicial',
+            'detallesOrdenOficial',
+            'detallesRequerimientoFiscal',
+            'usuarioCreador'
+        ])->get();
+
+        return Inertia::render('Solicitudes/Index', [
+            'solicitudes' => $solicitudes,
+        ]);
+    }
+
     public function create()
     {
         return Inertia::render('Solicitudes/Create');
@@ -55,7 +70,7 @@ class SolicitudController extends Controller
                             'lote',
                             'tipoCuarto'
                         ])->where('persona_id', $persona->id)->get();
-
+                        //dd($estancias->toArray());
                         // Manually load Departamento to avoid cross-database relationship issue
                         $departamentoIds = $estancias->pluck('reserva.establecimiento.sucursales.*.id_departamento')->flatten()->unique()->filter();
                         $departamentos = \App\Models\Departamento::whereIn('id', $departamentoIds)->get()->keyBy('id');
@@ -123,27 +138,31 @@ class SolicitudController extends Controller
                                             break;
                                     }
                 });
-                if ($solicitud && $solicitud->resultado_busqueda) {
-                    return redirect()->route('solicitudes.download', ['solicitud' => $solicitud->id]);
+                if ($solicitud) {
+                    return response()->json([
+                        'success' => true,
+                        'solicitud_id' => $solicitud->id,
+                        'has_results' => (bool)$solicitud->resultado_busqueda,
+                        'message' => $solicitud->resultado_busqueda ? 'Solicitud creada con éxito. Se encontraron estancias.' : 'Solicitud creada con éxito. No se encontraron estancias.'
+                    ]);
                 }
-                return redirect()->route('solicitud.create')->with('success', 'Solicitud creada con éxito. No se encontraron estancias.');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo crear la solicitud.'
+                ], 400);
 
             } catch (\Exception $e) {
                 Log::error('Error al crear la solicitud: ' . $e->getMessage());
-                return redirect()->back()->with('error', 'Error al crear la solicitud.');
+                 return response()->json([
+                    'success' => false,
+                    'message' => 'Error al crear la solicitud: ' . $e->getMessage()
+                ], 500);
             }
         }
 
     public function download(Solicitud $solicitud)
     {
-            Log::info('=== DIAGNÓSTICO DESCARGA ===');
-    Log::info('Entorno: ' . app()->environment());
-    Log::info('URL: ' . request()->url());
-    Log::info('PHP_SAPI: ' . PHP_SAPI);
-    Log::info('Ob level: ' . ob_get_level());
-        Log::info('Iniciando descarga de estancias para solicitud ID: ' . $solicitud->id);
-        Log::info('Contenido de resultado_busqueda (raw): ' . $solicitud->resultado_busqueda);
-
         $estanciasArray = json_decode($solicitud->resultado_busqueda, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {

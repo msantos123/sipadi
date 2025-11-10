@@ -39,24 +39,18 @@ class EstanciasExport implements FromCollection, WithHeadings, WithMapping
     public function map($estancia): array
     {
         $estancia = (object) $estancia;
-        $persona = (object) $estancia->persona;
-        $reserva = (object) $estancia->reserva;
-        $establecimiento = (object) $reserva->establecimiento;
-        $sucursal = $establecimiento->sucursales[0] ?? null;
-        $departamento = $sucursal ? ((object) $sucursal->departamento)->nombre : 'N/A';
-
 
         return [
-            $persona->nombres . ' ' . $persona->apellido_paterno . ' ' . $persona->apellido_materno,
-            $persona->tipo_documento . ': ' . $persona->nro_documento,
-            ((object) $persona->nacionalidad)->nombre,
-            $establecimiento->razon_social,
-            $sucursal ? $sucursal['nombre_sucursal'] : 'N/A',
-            $departamento,
-            $reserva->fecha_entrada,
-            $reserva->fecha_salida,
+            $estancia->persona_nombres . ' ' . $estancia->persona_apellido_paterno . ' ' . $estancia->persona_apellido_materno,
+            $estancia->persona_nro_documento,
+            $estancia->persona_nacionalidad,
+            $estancia->establecimiento_razon_social,
+            $estancia->sucursal_nombre,
+            $estancia->persona_departamento,
+            $estancia->fecha_hora_ingreso,
+            $estancia->fecha_hora_salida_efectiva ?? 'N/A',
             $estancia->nro_cuarto,
-            ((object) $estancia->tipo_cuarto)->nombre,
+            $estancia->tipo_cuarto_nombre,
         ];
     }
 }
