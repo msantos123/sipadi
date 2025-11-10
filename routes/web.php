@@ -6,7 +6,7 @@ use App\Http\Controllers\UsuariosController;
 use App\Http\Controllers\CheckinController;
 use App\Http\Controllers\EstanciaController;
 use App\Http\Controllers\LoteController;
-use App\Http\Controllers\EstadisticasController;
+use App\Http\Controllers\EstadisticaController;
 use App\Http\Controllers\ConfirmacionController;
 use App\Http\Controllers\CsvUploadController;
 use App\Http\Controllers\TipoCuartoController;
@@ -74,27 +74,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/estancias/{estancia}/rechazar-vmt', [EstanciaController::class, 'rechazarVmt'])->name('estancias.rechazar-vmt');
 
 
+
     Route::resource('settings/roles', RoleController::class)->except(['show'])->name('index', 'roles.index');
 
     Route::get('/solicitud/create', [SolicitudController::class, 'create'])->name('solicitud.create');
     Route::post('/solicitudes', [SolicitudController::class, 'store'])->name('solicitudes.store');
     Route::get('/solicitudes', [SolicitudController::class, 'index'])->name('solicitudes.index');
 
-        Route::get('/csv-upload', [CsvUploadController::class, 'create'])->name('csv.upload.create');
+    Route::get('/csv-upload', [CsvUploadController::class, 'create'])->name('csv.upload.create');
 
-        Route::post('/csv-upload', [CsvUploadController::class, 'store'])->name('csv.upload.store');
+    Route::post('/csv-upload', [CsvUploadController::class, 'store'])->name('csv.upload.store');
 
-    
+    // Rutas para Reportes
+    Route::get('/reportes', [\App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index');
+    Route::post('/reporte/generar', [\App\Http\Controllers\ReporteController::class, 'generarReporte'])->name('reporte.generar');
+    Route::get('/reporte/generar-excel', [\App\Http\Controllers\ReporteController::class, 'generarExcel'])->name('reporte.excel');
 
-        // Rutas para Reportes
-
-        Route::get('/reportes', [\App\Http\Controllers\ReporteController::class, 'index'])->name('reportes.index');
-
-        Route::post('/reporte/generar', [\App\Http\Controllers\ReporteController::class, 'generarReporte'])->name('reporte.generar');
-
-        Route::get('/reporte/generar-excel', [\App\Http\Controllers\ReporteController::class, 'generarExcel'])->name('reporte.excel');
-
-    
+     // Rutas para Estadísticas
+    Route::get('/estadisticas', [EstadisticaController::class, 'index'])->name('estadisticas.index');
+    Route::post('/estadisticas/generar', [EstadisticaController::class, 'generar'])->name('estadisticas.generar');
 
         });
 

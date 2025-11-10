@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { BookOpen, Folder, LayoutGrid, User } from 'lucide-vue-next';
+import { BookOpen, ChartNoAxesCombined, BookDown, Upload, Eye, Folder, LayoutGrid, User, UserCheck, BedDouble, BookOpenCheck   } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 // --- INICIO DE LA LÓGICA DE PERMISOS ---
@@ -51,53 +51,62 @@ const mainNavItems: NavItemWithPermission[] = [
     {
         title: 'Roles y Permisos',
         href: '/settings/roles',
-        icon: User,
+        icon: UserCheck,
         permission: 'gestionar-roles',
     },
     {
         title: 'Cuartos',
         href: '/cuartos',
-        icon: User,
+        icon: BedDouble,
         permission: 'gestionar-cuartos',
     },
     {
         title: 'Registrar Estancia',
         href: '/checkin',
-        icon: User,
+        icon: BookOpenCheck,
         permission: 'registrar-estancia',
     },
     {
         title: 'Ver Estancia',
         href: '/estancias',
-        icon: User,
+        icon: Eye ,
         permission: 'ver-estancia',
     },
     {
         title: 'Ver Parte Diario Departamental',
         href: '/revision',
-        icon: User,
+        icon: Eye ,
         permission: 'ver-parte-diario-departamental',
     },
     {
         title: 'Ver Parte Diario Nacional',
         href: '/confirmacion',
-        icon: User,
+        icon: Eye ,
         permission: 'ver-parte-diario-nacional',
     },
     {
         title: 'Ver Solicitudes Informacion',
         href: '/solicitudes',
-        icon: User,
+        permission: 'gestionar-solicitud',
+        icon: Eye ,
     },
     {
         title: 'Subir Informacion',
         href: '/csv-upload',
-        icon: User,
+        permission: 'gestionar-csv',
+        icon: Upload ,
     },
     {
         title: 'Reportes',
         href: '/reportes',
-        icon: User,
+        permission: 'gestionar-reportes',
+        icon: BookDown ,
+    },
+        {
+        title: 'Estadisticas',
+        href: '/estadisticas',
+        permission: 'gestionar-estadisticas',
+        icon: ChartNoAxesCombined ,
     },
 ];
 

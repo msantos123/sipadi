@@ -27,6 +27,7 @@ class RolesYPermisosSeeder extends Seeder
         Permission::create(['name' => 'gestionar-solicitud']);
         Permission::create(['name' => 'gestionar-csv']);
         Permission::create(['name' => 'gestionar-reportes']);
+        Permission::create(['name' => 'gestionar-estadisticas']);
         Permission::create(['name' => 'registrar-estancia']);
         Permission::create(['name' => 'ver-estancia']);
         Permission::create(['name' => 'aprobar-estancias']);
@@ -48,6 +49,7 @@ class RolesYPermisosSeeder extends Seeder
             'aprobar-parte-diario-nacional',
             'gestionar-solicitud',
             'gestionar-reportes',
+            'gestionar-estadisticas',
         ]);
 
         $roleDepartamental = Role::create(['id' => 4, 'name' => 'Departamental']);
