@@ -20,6 +20,21 @@ import {
 } from '@/components/ui/pagination';
 
 // Define las interfaces para el tipado estricto
+interface UsuarioRole {
+    id: number;
+    name: string;
+}
+
+interface Establecimiento {
+    id_establecimiento: number;
+    razon_social: string;
+}
+
+interface Sucursal {
+    id_sucursal: number;
+    nombre_sucursal: string;
+}
+
 interface Usuario {
     id: number;
     nombres: string;
@@ -27,9 +42,11 @@ interface Usuario {
     apellido_materno: string;
     ci: string;
     celular: string;
-    cargo: string;
     estado: string;
     email: string;
+    roles: UsuarioRole[];
+    establecimiento?: Establecimiento;
+    sucursal?: Sucursal;
 }
 
 interface Paginator {
@@ -87,6 +104,18 @@ watch(searchQuery, () => {
     debouncedSearch();
 });
 
+const toggleEstado = (usuario: Usuario) => {
+    const nextLabel = usuario.estado === 'activo' ? 'inactivar' : 'activar';
+    if (!window.confirm(`¿Desea ${nextLabel} al usuario ${usuario.nombres}?`)) {
+        return;
+    }
+
+    router.patch(`/usuarios/${usuario.id}/toggle-estado`, {}, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
+
 const breadcrumbs = [
     {
         title: 'Usuarios',
@@ -135,7 +164,8 @@ const breadcrumbs = [
                             <TableHead>A. Materno</TableHead>
                             <TableHead>CI</TableHead>
                             <TableHead>Celular</TableHead>
-                            <TableHead>Cargo</TableHead>
+                            <TableHead>Rol</TableHead>
+                            <TableHead>Establecimiento/Sucursal</TableHead>
                             <TableHead>Estado</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead class="text-right">Acciones</TableHead>
@@ -143,10 +173,11 @@ const breadcrumbs = [
                     </TableHeader>
                     <TableBody>
                         <TableRow v-if="usuarios.length === 0">
-                            <TableCell colspan="10" class="text-center">
+                            <TableCell colspan="11" class="text-center">
                                 No hay usuarios para mostrar.
                             </TableCell>
                         </TableRow>
+
                         <TableRow v-for="usuario in usuarios" :key="usuario.id">
                             <TableCell class="font-medium">{{ usuario.id }}</TableCell>
                             <TableCell>{{ usuario.nombres }}</TableCell>
@@ -154,7 +185,25 @@ const breadcrumbs = [
                             <TableCell>{{ usuario.apellido_materno }}</TableCell>
                             <TableCell>{{ usuario.ci }}</TableCell>
                             <TableCell>{{ usuario.celular }}</TableCell>
-                            <TableCell>{{ usuario.cargo }}</TableCell>
+                            <TableCell>
+                                <span v-if="usuario.roles && usuario.roles.length">
+                                    {{ usuario.roles.map(role => role.name).join(', ') }}
+                                </span>
+                                <span v-else>
+                                    Sin rol
+                                </span>
+                            </TableCell>
+                            <TableCell>
+                                <span v-if="usuario.sucursal">
+                                    {{ usuario.sucursal.nombre_sucursal}}
+                                </span>
+                                <span v-else-if="usuario.establecimiento">
+                                    {{ usuario.establecimiento.razon_social }}
+                                </span>
+                                <span v-else class="text-gray-400 italic">
+                                    N/A
+                                </span>
+                            </TableCell>
                             <TableCell>{{ usuario.estado }}</TableCell>
                             <TableCell>{{ usuario.email }}</TableCell>
                             <TableCell class="flex justify-center gap-2">
@@ -162,6 +211,15 @@ const breadcrumbs = [
                                     <Link :href="`/usuarios/${usuario.id}/edit`">
                                         <Pencil class="w-4 h-4 mr-2"/>
                                     </Link>
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    class="bg-red-400 text-white-700 hover:bg-red-500"
+                                    @click="toggleEstado(usuario)"
+                                >
+                                    {{ usuario.estado === 'activo' ? 'Inactivar' : 'Activar' }}
                                 </Button>
                             </TableCell>
                         </TableRow>

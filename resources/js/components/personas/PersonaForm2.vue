@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import InputError from '@/components/InputError.vue'
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -45,6 +46,82 @@ const filteredMunicipios = computed(() => {
   return props.municipios.filter(m => m.departamento_id === form.departamento_id)
 })
 
+// Validación para campos que solo aceptan números y letras (sin espacios ni caracteres especiales)
+const sanitizeAlphanumeric = (value: string) => {
+  return value.replace(/[^0-9A-Za-z]/g, '').toUpperCase()
+}
+
+// Validación para campos que solo aceptan letras, espacios y acentos
+const sanitizeLettersOnly = (value: string) => {
+  return value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s]/g, '').toUpperCase()
+}
+
+type AlphanumericField = 'nro_documento' | 'complemento'
+type LettersOnlyField = 'nombres' | 'apellido_paterno' | 'apellido_materno' | 'ciudad_origen' | 'ocupacion'
+
+// Handler para campos alfanuméricos (documento, complemento)
+const handleAlphanumericInput = (field: AlphanumericField, event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  if (!target) return
+  const sanitized = sanitizeAlphanumeric(target.value)
+  form[field] = sanitized
+  // Actualizar el valor del input para reflejar el cambio inmediatamente
+  target.value = sanitized
+}
+
+// Handler para campos de solo letras (nombres, apellidos, ciudad, ocupación)
+const handleLettersOnlyInput = (field: LettersOnlyField, event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  if (!target) return
+  const sanitized = sanitizeLettersOnly(target.value)
+  form[field] = sanitized
+  // Actualizar el valor del input para reflejar el cambio inmediatamente
+  target.value = sanitized
+}
+
+const nacionalidadSearch = ref('')
+const showNacionalidadList = ref(false)
+const nacionalidadSearchModel = computed({
+  get: () => nacionalidadSearch.value,
+  set: (value: string) => {
+    // Para búsqueda de nacionalidad, permitir letras y espacios
+    const sanitized = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s]/g, '')
+    nacionalidadSearch.value = sanitized
+    showNacionalidadList.value = true
+    if (form.nacionalidad_id) {
+      form.nacionalidad_id = null
+    }
+  },
+})
+
+const normalizeText = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const filteredNacionalidades = computed(() => {
+  if (!nacionalidadSearch.value) return props.nacionalidades
+  const term = normalizeText(nacionalidadSearch.value)
+  return props.nacionalidades.filter((nac) => {
+    const searchable = normalizeText(`${nac.pais} ${nac.gentilicio}`)
+    return searchable.includes(term)
+  })
+})
+
+const formatNacionalidad = (nac: Nacionalidad) => `${nac.pais} - ${nac.gentilicio}`
+
+const selectNacionalidad = (nac: Nacionalidad) => {
+  form.nacionalidad_id = nac.id
+  nacionalidadSearch.value = formatNacionalidad(nac)
+  showNacionalidadList.value = false
+}
+
+const handleNacionalidadFocus = () => {
+  showNacionalidadList.value = true
+}
+
+const handleNacionalidadBlur = () => {
+  setTimeout(() => {
+    showNacionalidadList.value = false
+  }, 150)
+}
+
 const isBoliviano = computed(() => {
   if (!form.nacionalidad_id) return false
   const nacionalidad = props.nacionalidades.find(n => n.id === form.nacionalidad_id)
@@ -59,6 +136,14 @@ watch(() => form.nacionalidad_id, (newVal) => {
     form.municipio_id = null
   }
 })
+
+watch(() => form.nacionalidad_id, (newVal) => {
+  if (!newVal) return
+  const selected = props.nacionalidades.find(n => n.id === newVal)
+  if (selected) {
+    nacionalidadSearch.value = formatNacionalidad(selected)
+  }
+}, { immediate: true })
 
 const edad = computed(() => {
   if (!form.fecha_nacimiento) return null
@@ -95,13 +180,25 @@ const submit = () => {
       <CardContent class="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div class="space-y-2">
           <Label for="documento">Documento</Label>
-          <Input id="documento" v-model="form.nro_documento" type="text" />
-          <div v-if="form.errors.nro_documento">{{ form.errors.nro_documento }}</div>
+          <Input 
+            id="documento" 
+            v-model="form.nro_documento" 
+            type="text" 
+            placeholder="Ej: 12345678" 
+            @input="handleAlphanumericInput('nro_documento', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.nro_documento" />
         </div>
         <div class="space-y-2">
-          <Label for="documento">Complemento</Label>
-          <Input id="documento" v-model="form.complemento" type="text" />
-          <div v-if="form.errors.complemento">{{ form.errors.complemento }}</div>
+          <Label for="complemento">Complemento</Label>
+          <Input 
+            id="complemento" 
+            v-model="form.complemento" 
+            type="text" 
+            placeholder="Ej: 1A" 
+            @input="handleAlphanumericInput('complemento', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.complemento" />
         </div>
         <div class="space-y-2">
           <Label for="tipo_documento">Tipo de Documento</Label>
@@ -114,7 +211,7 @@ const submit = () => {
                 Carnet de Identidad
               </SelectItem>
               <SelectItem value="pasaporte">
-                Pasoporte
+                Pasaporte
               </SelectItem>
             </SelectContent>
           </Select>
@@ -122,36 +219,79 @@ const submit = () => {
 
         <div class="space-y-2">
           <Label for="nombres">Nombres</Label>
-          <Input id="nombres" v-model="form.nombres" type="text" />
-          <div v-if="form.errors.nombres">{{ form.errors.nombres }}</div>
+          <Input 
+            id="nombres" 
+            v-model="form.nombres" 
+            type="text" 
+            placeholder="Ej: JUAN CARLOS" 
+            @input="handleLettersOnlyInput('nombres', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.nombres" />
         </div>
         <div class="space-y-2">
-          <Label for="apellidos">Apellido Paterno</Label>
-          <Input id="apellidos" v-model="form.apellido_paterno" type="text" />
-          <div v-if="form.errors.apellido_paterno">{{ form.errors.apellido_paterno }}</div>
+          <Label for="apellido_paterno">Primer Apellido</Label>
+          <Input 
+            id="apellido_paterno" 
+            v-model="form.apellido_paterno" 
+            type="text" 
+            placeholder="Ej: PÉREZ" 
+            @input="handleLettersOnlyInput('apellido_paterno', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.apellido_paterno" />
         </div>
         <div class="space-y-2">
-          <Label for="apellidos">Apellido Materno</Label>
-          <Input id="apellidos" v-model="form.apellido_materno" type="text" />
-          <div v-if="form.errors.apellido_materno">{{ form.errors.apellido_materno }}</div>
+          <Label for="apellido_materno">Segundo Apellido</Label>
+          <Input 
+            id="apellido_materno" 
+            v-model="form.apellido_materno" 
+            type="text" 
+            placeholder="Ej: GARCÍA" 
+            @input="handleLettersOnlyInput('apellido_materno', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.apellido_materno" />
         </div>
-        <div class="space-y-2">
+        <div class="space-y-2 relative">
           <Label for="nacionalidad">Nacionalidad</Label>
-          <Select v-model="form.nacionalidad_id">
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione nacionalidad" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="nac in nacionalidades" :key="nac.id" :value="nac.id">
-                {{ nac.pais }} - {{ nac.gentilicio }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          <div class="relative">
+            <Input
+              id="nacionalidad"
+              v-model="nacionalidadSearchModel"
+              type="text"
+              placeholder="Buscar nacionalidad..."
+              autocomplete="off"
+              @focus="handleNacionalidadFocus"
+              @blur="handleNacionalidadBlur"
+            />
+            <div
+              v-if="showNacionalidadList"
+              class="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow"
+            >
+              <button
+                v-for="nac in filteredNacionalidades"
+                :key="nac.id"
+                type="button"
+                class="flex w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+                @mousedown.prevent="selectNacionalidad(nac)"
+              >
+                {{ formatNacionalidad(nac) }}
+              </button>
+              <div v-if="!filteredNacionalidades.length" class="px-3 py-2 text-sm text-gray-500">
+                No se encontraron resultados
+              </div>
+            </div>
+          </div>
+          <InputError class="mt-2" :message="form.errors.nacionalidad_id" />
         </div>
         <div v-if="!isBoliviano" class="space-y-2">
-          <Label for="apellidos">Ciudad de Origen</Label>
-          <Input id="apellidos" v-model="form.ciudad_origen" type="text" />
-          <div v-if="form.errors.ciudad_origen">{{ form.errors.ciudad_origen }}</div>
+          <Label for="ciudad_origen">Ciudad de Origen</Label>
+          <Input 
+            id="ciudad_origen" 
+            v-model="form.ciudad_origen" 
+            type="text" 
+            placeholder="Ej: SÃO PAULO" 
+            @input="handleLettersOnlyInput('ciudad_origen', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.ciudad_origen" />
         </div>
         <div v-if="isBoliviano" class="space-y-2">
           <Label for="departamento">Departamento</Label>
@@ -182,7 +322,7 @@ const submit = () => {
         <div class="space-y-2">
           <Label for="fecha_nacimiento">Fecha de Nacimiento</Label>
           <Input id="fecha_nacimiento" v-model="form.fecha_nacimiento" type="date" />
-          <div v-if="form.errors.fecha_nacimiento">{{ form.errors.fecha_nacimiento }}</div>
+          <InputError class="mt-2" :message="form.errors.fecha_nacimiento" />
         </div>
         <div class="space-y-2">
           <Label for="edad">Edad</Label>
@@ -234,8 +374,14 @@ const submit = () => {
         </div>
         <div class="space-y-2">
           <Label for="ocupacion">Ocupación</Label>
-          <Input id="apellidos" v-model="form.ocupacion" type="text" />
-          <div v-if="form.errors.ocupacion">{{ form.errors.ocupacion }}</div>
+          <Input 
+            id="ocupacion" 
+            v-model="form.ocupacion" 
+            type="text" 
+            placeholder="Ej: INGENIERO CIVIL" 
+            @input="handleLettersOnlyInput('ocupacion', $event)" 
+          />
+          <InputError class="mt-2" :message="form.errors.ocupacion" />
         </div>
 
       </CardContent>

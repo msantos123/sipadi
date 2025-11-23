@@ -15,39 +15,83 @@ class ReporteController extends Controller
 {
     public function index()
     {
-        $departamentos = Departamento::all();
-        $establecimientos = Establecimiento::all();
-        $sucursales = Sucursal::all();
+        $user = auth()->user();
+        $userRoles = $user->roles->pluck('id')->toArray();
+        
+        // Determinar alcance según rol
+        // Admin (1) y Nacional (2) - Acceso total
+        if (in_array(1, $userRoles) || in_array(2, $userRoles)) {
+            $departamentos = Departamento::all();
+            $establecimientos = Establecimiento::all();
+            $sucursales = Sucursal::all();
+            $alcance = 'nacional';
+            
+        // Departamental (4) - Solo su departamento
+        } elseif (in_array(4, $userRoles)) {
+            $departamentos = Departamento::where('id', $user->departamento_id)->get();
+            $establecimientos = Establecimiento::where('id_departamento', $user->departamento_id)->where('id_prestador', 5)->get();
+            $sucursales = Sucursal::where('id_departamento', $user->departamento_id)->get();
+            $alcance = 'departamental';
+            
+        // Prestador (6) - Solo su establecimiento y sucursales
+        } elseif (in_array(6, $userRoles)) {
+            $departamentos = collect(); // Vacío
+            $establecimientos = Establecimiento::where('id_establecimiento', $user->establecimiento_id)->get();
+            $sucursales = Sucursal::where('id_casa_matriz', $user->establecimiento_id)->get();
+            $alcance = 'establecimiento';
+            
+        } else {
+            // Sin acceso
+            abort(403, 'No tienes permiso para acceder a reportes');
+        }
 
         return Inertia::render('Reportes/Index', [
             'departamentos' => $departamentos,
             'establecimientos' => $establecimientos,
             'sucursales' => $sucursales,
+            'alcance' => $alcance,
         ]);
     }
 
     private function getReporteData(Request $request)
     {
+        $user = auth()->user();
+        $userRoles = $user->roles->pluck('id')->toArray();
+        
         $query = Estancia::with([
             'persona.nacionalidad',
             'persona.departamento',
             'lote.establecimiento',
             'lote.sucursal',
+            'lote.departamento',
             'tipoCuarto',
         ]);
+
+        // Aplicar restricciones según rol ANTES de filtros del usuario
+        // Departamental (4) - Forzar solo su departamento
+        if (in_array(4, $userRoles)) {
+            $request->merge(['departamento_ids' => [$user->departamento_id]]);
+        }
+        
+        // Prestador (6) - Forzar solo su establecimiento
+        if (in_array(6, $userRoles)) {
+            $request->merge(['establecimiento_ids' => [$user->establecimiento_id]]);
+        }
 
         // Filtrar por rango de fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
             $query->whereBetween('fecha_hora_ingreso', [$request->fecha_inicio, $request->fecha_fin]);
         }
 
-        // Filtrar por departamento de establecimiento o sucursal
-        if ($request->filled('departamento_id')) {
-            $departamentoId = $request->departamento_id;
+        // Filtrar por múltiples departamentos
+        if ($request->filled('departamento_ids')) {
+            $departamentoIds = is_array($request->departamento_ids) 
+                ? $request->departamento_ids 
+                : [$request->departamento_ids];
 
             // Get IDs from the other database
-            $establecimientoIds = Establecimiento::where('id_departamento', $departamentoId)->pluck('id_establecimiento');
-            $sucursalIds = Sucursal::where('id_departamento', $departamentoId)->pluck('id_sucursal');
+            $establecimientoIds = Establecimiento::whereIn('id_departamento', $departamentoIds)->pluck('id_establecimiento');
+            $sucursalIds = Sucursal::whereIn('id_departamento', $departamentoIds)->pluck('id_sucursal');
 
             if ($establecimientoIds->isNotEmpty() || $sucursalIds->isNotEmpty()) {
                 $query->whereHas('lote', function ($loteQuery) use ($establecimientoIds, $sucursalIds) {
@@ -66,17 +110,25 @@ class ReporteController extends Controller
             }
         }
 
-        // Filtrar por establecimiento
-        if ($request->filled('establecimiento_id')) {
-            $query->whereHas('lote', function ($q) use ($request) {
-                $q->where('establecimiento_id', $request->establecimiento_id);
+        // Filtrar por múltiples establecimientos
+        if ($request->filled('establecimiento_ids')) {
+            $establecimientoIds = is_array($request->establecimiento_ids) 
+                ? $request->establecimiento_ids 
+                : [$request->establecimiento_ids];
+                
+            $query->whereHas('lote', function ($q) use ($establecimientoIds) {
+                $q->whereIn('establecimiento_id', $establecimientoIds);
             });
         }
 
-        // Filtrar por sucursal
-        if ($request->filled('sucursal_id')) {
-            $query->whereHas('lote', function ($q) use ($request) {
-                $q->where('sucursal_id', $request->sucursal_id);
+        // Filtrar por múltiples sucursales
+        if ($request->filled('sucursal_ids')) {
+            $sucursalIds = is_array($request->sucursal_ids) 
+                ? $request->sucursal_ids 
+                : [$request->sucursal_ids];
+                
+            $query->whereHas('lote', function ($q) use ($sucursalIds) {
+                $q->whereIn('sucursal_id', $sucursalIds);
             });
         }
 
@@ -85,8 +137,12 @@ class ReporteController extends Controller
 
     public function generarReporte(Request $request)
     {
+        \Log::info('Datos recibidos en generarReporte:', $request->all());
+        
         $datos = $this->getReporteData($request);
-
+        
+        \Log::info('Total de estancias encontradas:', ['count' => $datos->count()]);
+        
         return response()->json($datos);
     }
 

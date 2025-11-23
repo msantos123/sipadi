@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { template } from 'lodash';
 
 const lotes = ref<any[]>([]);
@@ -18,6 +19,13 @@ const estancias = ref<any[]>([]);
 const loading = ref(true);
 const loadingEstancias = ref(false);
 const error = ref<string | null>(null);
+
+// Estado para selector de cambio de estado
+const nuevoEstadoLote = ref('');
+
+// Estado para selección múltiple de lotes
+const selectedLotes = ref<Set<number>>(new Set());
+const selectAllLotes = ref(false);
 
 const getTodayString = () => {
   const today = new Date();
@@ -51,6 +59,11 @@ const filteredLotes = computed(() => {
     return lotes.value;
   }
   return lotes.value.filter(lote => lote.fecha_lote.startsWith(selectedDate.value));
+});
+
+// Computed para contar lotes seleccionables (solo EN_REVISION_GAD)
+const lotesSeleccionables = computed(() => {
+  return filteredLotes.value.filter(lote => lote.estado_lote === 'EN_REVISION_GAD');
 });
 
 const processedEstancias = computed(() => {
@@ -116,9 +129,87 @@ const getEstanciaStatusVariant = (status: string): 'secondary' | 'destructive' |
   }
 };
 
+// Funciones para colores de badges
+function getLoteStatusClasses(estado: string) {
+    switch (estado) {
+        case 'PENDIENTE_DE_ENVIO': 
+            return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        case 'EN_REVISION_GAD': 
+            return 'bg-blue-100 text-blue-800 border-blue-300';
+        case 'EN_REVISION_VMT': 
+            return 'bg-purple-100 text-purple-800 border-purple-300';
+        case 'COMPLETADO': 
+            return 'bg-green-100 text-green-800 border-green-300';
+        default: 
+            return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+}
+
+function getLoteStatusText(estado: string) {
+    switch (estado) {
+        case 'PENDIENTE_DE_ENVIO': return 'Pendiente de Envío';
+        case 'EN_REVISION_GAD': return 'En Revisión GAD';
+        case 'EN_REVISION_VMT': return 'En Revisión VMT';
+        case 'COMPLETADO': return 'Completado';
+        default: return estado;
+    }
+}
+
+function getEstanciaStatusClasses(status: string) {
+    switch (status) {
+        case 'ACTIVA': 
+            return 'bg-green-100 text-green-800 border-green-300';
+        case 'FINALIZADA': 
+            return 'bg-red-100 text-red-800 border-red-300';
+        case 'CANCELADA': 
+            return 'bg-red-100 text-red-800 border-red-300';
+        default: 
+            return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+}
+
 function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  if (!dateString) return 'N/A';
+  
+  // Para formato ISO 8601 (2025-11-22T00:00:00.000000Z o 2025-11-22T19:49:35.000000Z)
+  if (dateString.includes('T')) {
+    // Extraer la parte de fecha y hora directamente del string
+    const [datePart, timePart] = dateString.split('T');
+    const [year, month, day] = datePart.split('-');
+    
+    // Si hay hora (y no es 00:00:00), mostrarla
+    if (timePart && !timePart.startsWith('00:00:00')) {
+      const [hour, minute] = timePart.split(':');
+      return `${day}/${month}/${year}, ${hour}:${minute}`;
+    }
+    
+    // Si es 00:00:00, solo mostrar la fecha
+    return `${day}/${month}/${year}`;
+  }
+  
+  // Manejar formato simple con hora (2025-11-22 19:49:35)
+  if (dateString.includes(' ')) {
+    const [datePart, timePart] = dateString.split(' ');
+    const [year, month, day] = datePart.split('-');
+    
+    if (timePart && !timePart.startsWith('00:00:00')) {
+      const [hour, minute] = timePart.split(':');
+      return `${day}/${month}/${year}, ${hour}:${minute}`;
+    }
+    
+    return `${day}/${month}/${year}`;
+  }
+  
+  // Manejar formato solo fecha (2025-11-22)
+  if (dateString.includes('-')) {
+    const parts = dateString.trim().split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      return `${day}/${month}/${year}`;
+    }
+  }
+  
+  return dateString;
 }
 
 const loteStatusInfo = computed(() => {
@@ -153,6 +244,76 @@ const submitToVmt = async () => {
     }
 };
 
+// Función para cambiar estado del lote
+async function cambiarEstadoLote() {
+    if (!selectedLote.value || !nuevoEstadoLote.value) {
+        alert('Seleccione un estado');
+        return;
+    }
+    
+    if (confirm(`¿Está seguro de cambiar el estado del lote a "${getLoteStatusText(nuevoEstadoLote.value)}"?`)) {
+        try {
+            await axios.put(`/lotes/${selectedLote.value.id}/cambiar-estado`, {
+                estado: nuevoEstadoLote.value
+            });
+            alert('Estado del lote actualizado exitosamente');
+            // Recargar lote
+            goBackToList();
+            fetchLotes();
+        } catch (error) {
+            console.error('Error al cambiar estado del lote:', error);
+            alert('Error al cambiar el estado del lote. Por favor, intente nuevamente.');
+        }
+    }
+}
+
+// Funciones para selección múltiple de lotes
+function toggleLote(id: number, event: Event) {
+    event.stopPropagation(); // Evitar que se abra el lote al hacer clic en el checkbox
+    if (selectedLotes.value.has(id)) {
+        selectedLotes.value.delete(id);
+    } else {
+        selectedLotes.value.add(id);
+    }
+    selectAllLotes.value = selectedLotes.value.size === filteredLotes.value.length;
+}
+
+function toggleSelectAllLotes() {
+    if (selectAllLotes.value) {
+        selectedLotes.value.clear();
+        selectAllLotes.value = false;
+    } else {
+        // Solo seleccionar lotes que estén en estado EN_REVISION_GAD
+        filteredLotes.value
+            .filter(lote => lote.estado_lote === 'EN_REVISION_GAD')
+            .forEach(lote => selectedLotes.value.add(lote.id));
+        selectAllLotes.value = true;
+    }
+}
+
+async function cambiarEstadoLotesSeleccionados() {
+    if (selectedLotes.value.size === 0) {
+        alert('Seleccione al menos un lote');
+        return;
+    }
+    
+    if (confirm(`¿Está seguro de enviar ${selectedLotes.value.size} lote(s) a Revisión VMT?`)) {
+        try {
+            await axios.post('/lotes/cambiar-estado-multiple', {
+                lote_ids: Array.from(selectedLotes.value),
+                estado: 'EN_REVISION_VMT'
+            });
+            alert('Lotes enviados a VMT exitosamente');
+            selectedLotes.value.clear();
+            selectAllLotes.value = false;
+            fetchLotes();
+        } catch (error) {
+            console.error('Error al cambiar estados:', error);
+            alert('Error al enviar los lotes a VMT. Por favor, intente nuevamente.');
+        }
+    }
+}
+
 onMounted(() => {
   fetchLotes();
 });
@@ -182,6 +343,30 @@ onMounted(() => {
                 <Button variant="outline" @click="selectedDate = ''">Limpiar</Button>
             </div>
         </div>
+        
+        <!-- Controles de selección múltiple -->
+        <div v-if="filteredLotes.length > 0" class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+            <div class="flex items-center gap-2">
+                <input 
+                    type="checkbox" 
+                    :checked="selectAllLotes" 
+                    @change="toggleSelectAllLotes"
+                    class="w-4 h-4 cursor-pointer"
+                />
+                <Label class="cursor-pointer" @click="toggleSelectAllLotes">
+                    Seleccionar todos ({{ selectedLotes.size }}/{{ lotesSeleccionables.length }})
+                </Label>
+            </div>
+            
+            <Button 
+                @click="cambiarEstadoLotesSeleccionados" 
+                :disabled="selectedLotes.size === 0"
+                class="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+                Enviar a VMT ({{ selectedLotes.size }})
+            </Button>
+        </div>
+        
       <div v-if="filteredLotes.length === 0 && !error">
         No hay lotes pendientes de revisión para la fecha seleccionada.
       </div>
@@ -189,22 +374,43 @@ onMounted(() => {
         v-for="lote in filteredLotes"
         :key="lote.id"
         class="p-4 transition-all duration-200 border rounded-lg cursor-pointer hover:bg-gray-50 hover:shadow-md"
+        :class="{ 
+            'border-blue-500 bg-blue-50': selectedLotes.has(lote.id),
+            'opacity-60': lote.estado_lote === 'EN_REVISION_VMT' || lote.estado_lote === 'COMPLETADO'
+        }"
         @click="selectLote(lote)"
       >
-        <h3 v-if="lote && lote.sucursales && lote.sucursales.length > 0" class="font-bold">
-    Establecimiento: {{ lote.sucursales[0].nombre_sucursal }}
-</h3>
+        <div class="flex items-start gap-3">
+            <input 
+                type="checkbox" 
+                :checked="selectedLotes.has(lote.id)"
+                :disabled="lote.estado_lote === 'EN_REVISION_VMT' || lote.estado_lote === 'COMPLETADO'"
+                @click="toggleLote(lote.id, $event)"
+                class="w-5 h-5 mt-1 cursor-pointer"
+                :class="{ 'cursor-not-allowed': lote.estado_lote === 'EN_REVISION_VMT' || lote.estado_lote === 'COMPLETADO' }"
+            />
+            <div class="flex-1">
+                <h3 v-if="lote && lote.sucursales && lote.sucursales.length > 0" class="font-bold">
+                    Establecimiento: {{ lote.sucursales[0].nombre_sucursal }}
+                </h3>
 
-        <h3 v-else-if="lote && lote.establecimiento" class="font-bold">
-            Establecimiento: {{ lote.establecimiento.razon_social }}
-        </h3>
+                <h3 v-else-if="lote && lote.establecimiento" class="font-bold">
+                    Establecimiento: {{ lote.establecimiento.razon_social }}
+                </h3>
 
-        <h3 v-else class="font-bold">
-            Establecimiento: No disponible
-        </h3>
-        <p>Fecha: {{ formatDate(lote.fecha_lote) }}</p>
-        <p>Estado: <span class="font-semibold">{{ lote.estado_lote }}</span></p>
-        <p v-if="lote.usuario_registra">Registrado por: {{ lote.usuario_registra.nombres }} {{ lote.usuario_registra.apellido_paterno }}</p>
+                <h3 v-else class="font-bold">
+                    Establecimiento: No disponible
+                </h3>
+                <p>Fecha: {{ formatDate(lote.fecha_lote) }}</p>
+                <p class="flex items-center gap-2">
+                    Estado: 
+                    <Badge variant="outline" :class="getLoteStatusClasses(lote.estado_lote)">
+                        {{ getLoteStatusText(lote.estado_lote) }}
+                    </Badge>
+                </p>
+                <p v-if="lote.usuario_registra">Registrado por: {{ lote.usuario_registra.nombres }} {{ lote.usuario_registra.apellido_paterno }}</p>
+            </div>
+        </div>
       </div>
     </div>
 
@@ -230,10 +436,9 @@ onMounted(() => {
                 }}
             </CardTitle>
             <div class="flex items-center gap-4">
-                <Badge :variant="loteStatusInfo.variant">{{ loteStatusInfo.text }}</Badge>
-                <Button @click="submitToVmt" :disabled="!canSubmitToVmt">
-                    Finalizar y Enviar a VMT
-                </Button>
+                <Badge variant="outline" :class="getLoteStatusClasses(selectedLote.estado_lote)">
+                    {{ getLoteStatusText(selectedLote.estado_lote) }}
+                </Badge>
             </div>
         </CardHeader>
         <CardContent>
@@ -246,9 +451,10 @@ onMounted(() => {
                     <TableRow>
                         <TableHead>Huésped</TableHead>
                         <TableHead>Documento</TableHead>
-                        <TableHead>pais</TableHead>
+                        <TableHead>País</TableHead>
                         <TableHead>Estado Estancia</TableHead>
-                        <TableHead class="text-right">Acciones</TableHead>
+                        <TableHead>Fecha de Ingreso</TableHead>
+                        <TableHead>Fecha de Salida</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -261,14 +467,18 @@ onMounted(() => {
                             <TableCell>{{ estancia.persona.nro_documento }}</TableCell>
                             <TableCell>{{ estancia.persona.nacionalidad.pais }}</TableCell>
                             <TableCell>
-                                <Badge :variant="getEstanciaStatusVariant(estancia.estado_estancia)">
+                                <Badge variant="outline" :class="getEstanciaStatusClasses(estancia.estado_estancia)">
                                     {{ estancia.estado_estancia }}
                                 </Badge>
                             </TableCell>
-                            <TableCell class="text-right">
-                                <Button @click="openReviewDialog(estancia)" size="sm">
-                                    Gestionar
-                                </Button>
+                            <TableCell>{{ formatDate(estancia.fecha_hora_ingreso) }}</TableCell>
+                            <TableCell>
+                                <span v-if="estancia.fecha_hora_salida_efectiva">
+                                    {{ formatDate(estancia.fecha_hora_salida_efectiva) }}
+                                </span>
+                                <span v-else class="text-gray-500 italic">
+                                    Sin salir
+                                </span>
                             </TableCell>
                         </TableRow>
                     </template>
@@ -320,7 +530,7 @@ onMounted(() => {
                     </div>
                     <div>
                         <Label>Estado de la Estancia</Label>
-                        <Badge :variant="getEstanciaStatusVariant(selectedEstanciaForReview.estado_estancia)">
+                        <Badge variant="outline" :class="getEstanciaStatusClasses(selectedEstanciaForReview.estado_estancia)">
                             {{ selectedEstanciaForReview.estado_estancia }}
                         </Badge>
                     </div>

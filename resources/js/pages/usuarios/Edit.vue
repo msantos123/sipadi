@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, useForm } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { BreadcrumbItem, Nacionalidad, Municipio, Departamento, Establecimiento, Sucursal, Role, User } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -90,6 +90,84 @@ const filteredMunicipios = computed(() => {
     return props.municipios.filter(m => m.departamento_id === form.departamento_id)
 })
 
+type SanitizeMode = 'alphanumeric' | 'letters' | 'numbers'
+const sanitizeInput = (value: string, mode: SanitizeMode = 'alphanumeric') => {
+  if (mode === 'letters') {
+    return value.replace(/[^A-Za-z\u00C0-\u00FF\s]/g, '')
+  }
+  if (mode === 'numbers') {
+    return value.replace(/[^0-9]/g, '')
+  }
+  return value.replace(/[^0-9A-Za-z\u00C0-\u00FF\s]/g, '')
+}
+
+type SanitizableField =
+  | 'apellido_paterno'
+  | 'apellido_materno'
+  | 'nombres'
+  | 'ci'
+  | 'celular'
+
+const handleSanitizedInput = (field: SanitizableField, mode: SanitizeMode, event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  if (!target) return
+  form[field] = sanitizeInput(target.value, mode)
+}
+
+const nacionalidadSearch = ref('')
+const showNacionalidadList = ref(false)
+
+const nacionalidadSearchModel = computed({
+  get: () => nacionalidadSearch.value,
+  set: (value: string) => {
+    const sanitized = sanitizeInput(value)
+    nacionalidadSearch.value = sanitized
+    showNacionalidadList.value = true
+    if (form.nacionalidad_id) {
+      form.nacionalidad_id = null
+    }
+  },
+})
+
+const normalizeText = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const filteredNacionalidades = computed(() => {
+  if (!nacionalidadSearch.value) return props.nacionalidades
+  const term = normalizeText(nacionalidadSearch.value)
+  return props.nacionalidades.filter((nac) => {
+    const searchable = normalizeText(`${nac.pais} ${nac.gentilicio}`)
+    return searchable.includes(term)
+  })
+})
+
+const formatNacionalidad = (nac: Nacionalidad) => `${nac.pais} - ${nac.gentilicio}`
+
+const selectNacionalidad = (nac: Nacionalidad) => {
+  form.nacionalidad_id = nac.id
+  nacionalidadSearch.value = formatNacionalidad(nac)
+  showNacionalidadList.value = false
+}
+
+const handleNacionalidadFocus = () => {
+  showNacionalidadList.value = true
+}
+
+const handleNacionalidadBlur = () => {
+  setTimeout(() => {
+    showNacionalidadList.value = false
+  }, 150)
+}
+
+watch(() => form.nacionalidad_id, (newVal) => {
+  if (!newVal) {
+    nacionalidadSearch.value = ''
+    return
+  }
+  const selected = props.nacionalidades.find(n => n.id === newVal)
+  if (selected) {
+    nacionalidadSearch.value = formatNacionalidad(selected)
+  }
+}, { immediate: true })
+
 const submit = () => {
   form.put(`/usuarios/${props.usuario.id}`);
 };
@@ -107,42 +185,60 @@ const submit = () => {
                     <CardContent class="grid grid-cols-1 gap-6 md:grid-cols-3">
                         <!-- Campos de Datos Personales -->
                         <div class="space-y-2">
-                            <Label for="apellido_paterno">Apellido Paterno</Label>
-                            <Input id="apellido_paterno" v-model="form.apellido_paterno" type="text" required />
+                            <Label for="apellido_paterno">Primer Apellido</Label>
+                            <Input id="apellido_paterno" v-model="form.apellido_paterno" type="text" required @input="handleSanitizedInput('apellido_paterno', 'letters', $event)" />
                             <div v-if="form.errors.apellido_paterno" class="text-sm text-red-500">{{ form.errors.apellido_paterno }}</div>
                         </div>
                         <div class="space-y-2">
-                            <Label for="apellido_materno">Apellido Materno</Label>
-                            <Input id="apellido_materno" v-model="form.apellido_materno" type="text" />
+                            <Label for="apellido_materno">Segundo Apellido</Label>
+                            <Input id="apellido_materno" v-model="form.apellido_materno" type="text" @input="handleSanitizedInput('apellido_materno', 'letters', $event)" />
                             <div v-if="form.errors.apellido_materno" class="text-sm text-red-500">{{ form.errors.apellido_materno }}</div>
                         </div>
                         <div class="space-y-2">
                             <Label for="nombres">Nombres</Label>
-                            <Input id="nombres" v-model="form.nombres" type="text" required />
+                            <Input id="nombres" v-model="form.nombres" type="text" required @input="handleSanitizedInput('nombres', 'letters', $event)" />
                             <div v-if="form.errors.nombres" class="text-sm text-red-500">{{ form.errors.nombres }}</div>
                         </div>
                         <div class="space-y-2">
                             <Label for="ci">CI</Label>
-                            <Input id="ci" v-model="form.ci" type="text" required />
+                            <Input id="ci" v-model="form.ci" type="text" required @input="handleSanitizedInput('ci', 'numbers', $event)" />
                             <div v-if="form.errors.ci" class="text-sm text-red-500">{{ form.errors.ci }}</div>
                         </div>
                         <div class="space-y-2">
                             <Label for="celular">Celular</Label>
-                            <Input id="celular" v-model="form.celular" type="text" />
+                            <Input id="celular" v-model="form.celular" type="text" @input="handleSanitizedInput('celular', 'numbers', $event)" />
                             <div v-if="form.errors.celular" class="text-sm text-red-500">{{ form.errors.celular }}</div>
                         </div>
-                        <div class="space-y-2">
+                        <div class="space-y-2 relative">
                             <Label for="nacionalidad">Nacionalidad</Label>
-                            <Select v-model="form.nacionalidad_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione nacionalidad" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem v-for="nac in nacionalidades" :key="nac.id" :value="nac.id">
-                                        {{ nac.pais }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div class="relative">
+                                <Input
+                                    id="nacionalidad"
+                                    v-model="nacionalidadSearchModel"
+                                    type="text"
+                                    placeholder="Buscar nacionalidad..."
+                                    autocomplete="off"
+                                    @focus="handleNacionalidadFocus"
+                                    @blur="handleNacionalidadBlur"
+                                />
+                                <div
+                                    v-if="showNacionalidadList"
+                                    class="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow"
+                                >
+                                    <button
+                                        v-for="nac in filteredNacionalidades"
+                                        :key="nac.id"
+                                        type="button"
+                                        class="flex w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+                                        @mousedown.prevent="selectNacionalidad(nac)"
+                                    >
+                                        {{ formatNacionalidad(nac) }}
+                                    </button>
+                                    <div v-if="!filteredNacionalidades.length" class="px-3 py-2 text-sm text-gray-500">
+                                        No se encontraron resultados
+                                    </div>
+                                </div>
+                            </div>
                             <div v-if="form.errors.nacionalidad_id" class="text-sm text-red-500">{{ form.errors.nacionalidad_id }}</div>
                         </div>
 

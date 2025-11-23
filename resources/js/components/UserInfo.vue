@@ -21,7 +21,7 @@ const { getInitials } = useInitials();
     <div class="grid flex-1 text-left text-sm leading-tight">
         <span v-if="showEmail" class="truncate text-xs text-muted-foreground">Nombre: {{ user.nombres }} {{ user.apellido_paterno }} {{ user.apellido_materno }}</span>
         <span v-if="showEmail" class="truncate text-xs text-muted-foreground">Email: {{ user.email }}</span>
-        <span v-if="showEmail" class="truncate text-xs text-muted-foreground">Establecimiento: {{ user.establecimiento?.razon_social }}</span>
-        <span v-if="showEmail" class="truncate text-xs text-muted-foreground">Departamento: {{ user.departamento.nombre }}</span>
+        <span v-if="showEmail && user.establecimiento" class="truncate text-xs text-muted-foreground">Establecimiento: {{ user.establecimiento.razon_social }}</span>
+        <span v-if="showEmail && user.departamento" class="truncate text-xs text-muted-foreground">Departamento: {{ user.departamento.nombre }}</span>
     </div>
 </template>

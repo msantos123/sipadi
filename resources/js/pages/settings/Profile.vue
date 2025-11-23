@@ -34,13 +34,12 @@ const user = page.props.auth.user;
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbItems">
-        <Head title="Profile settings" />
+        <Head title="Configuración de perfil" />
 
         <SettingsLayout>
             <div class="flex flex-col space-y-6">
                 <HeadingSmall
-                    title="Profile information"
-                    description="Update your name and email address"
+                    title="Información de Perfil"
                 />
 
                 <Form
@@ -49,21 +48,20 @@ const user = page.props.auth.user;
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
                     <div class="grid gap-2">
-                        <Label for="name">Name</Label>
+                        <Label for="name">Nombre Completo</Label>
                         <Input
                             id="name"
                             class="mt-1 block w-full"
                             name="name"
-                            :default-value="user.name"
+                            :default-value="user.nombres + ' ' + user.apellido_paterno + ' ' + user.apellido_materno"
                             required
                             autocomplete="name"
-                            placeholder="Full name"
+                            disabled
                         />
-                        <InputError class="mt-2" :message="errors.name" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="email">Email address</Label>
+                        <Label for="email">Correo Electronico</Label>
                         <Input
                             id="email"
                             type="email"
@@ -72,12 +70,57 @@ const user = page.props.auth.user;
                             :default-value="user.email"
                             required
                             autocomplete="username"
-                            placeholder="Email address"
+                            disabled
                         />
                         <InputError class="mt-2" :message="errors.email" />
                     </div>
 
-                    <div v-if="mustVerifyEmail && !user.email_verified_at">
+                    <div class="grid gap-2">
+                        <Label for="email">Departamento</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            class="mt-1 block w-full"
+                            name="email"
+                            :default-value="user.departamento?.nombre"
+                            required
+                            autocomplete="username"
+                            disabled
+                        />
+                        <InputError class="mt-2" :message="errors.email" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="email">Establecimiento</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            class="mt-1 block w-full"
+                            name="email"
+                            :default-value="user.establecimiento?.razon_social"
+                            required
+                            autocomplete="username"
+                            disabled
+                        />
+                        <InputError class="mt-2" :message="errors.email" />
+                    </div>
+
+                    <div class="grid gap-2">
+                        <Label for="email">Sucursal</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            class="mt-1 block w-full"
+                            name="email"
+                            :default-value="user.sucursal?.nombre_sucursal"
+                            required
+                            autocomplete="username"
+                            disabled
+                        />
+                        <InputError class="mt-2" :message="errors.email" />
+                    </div>
+
+                    <!--div v-if="mustVerifyEmail && !user.email_verified_at">
                         <p class="-mt-4 text-sm text-muted-foreground">
                             Your email address is unverified.
                             <Link
@@ -118,11 +161,11 @@ const user = page.props.auth.user;
                                 Saved.
                             </p>
                         </Transition>
-                    </div>
+                    </div-->
                 </Form>
             </div>
 
-            <DeleteUser />
+        <!--DeleteUser /-->
         </SettingsLayout>
     </AppLayout>
 </template>

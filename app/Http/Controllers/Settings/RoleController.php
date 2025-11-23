@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -48,7 +49,15 @@ class RoleController extends Controller
             'permissions.*' => 'integer|exists:permissions,id',
         ]);
 
-        $role = Role::create(['name' => $validated['name']]);
+        $role = DB::transaction(function () use ($validated) {
+            $nextRoleId = (Role::max('id') ?? 0) + 1;
+
+            $role = new Role(['name' => $validated['name']]);
+            $role->id = $nextRoleId;
+            $role->save();
+
+            return $role;
+        });
 
         if (!empty($validated['permissions'])) {
             $role->syncPermissions($validated['permissions']);

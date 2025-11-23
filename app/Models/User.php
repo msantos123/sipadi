@@ -34,6 +34,9 @@ class User extends Authenticatable
         'estado',
         'email',
         'password',
+        'verification_code',
+        'verification_code_expires_at',
+        'must_change_password',
     ];
 
     /**
@@ -85,5 +88,33 @@ class User extends Authenticatable
     public function sucursal(): BelongsTo
     {
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
+    }
+
+    /**
+     * Genera un código de verificación aleatorio de 8 caracteres
+     * y establece su fecha de expiración a 24 horas desde ahora.
+     *
+     * @return string El código de verificación generado
+     */
+    public function generateVerificationCode(): string
+    {
+        $this->verification_code = strtoupper(\Illuminate\Support\Str::random(8));
+        $this->verification_code_expires_at = now()->addHours(24);
+        $this->save();
+
+        return $this->verification_code;
+    }
+
+    /**
+     * Verifica si el código de verificación es válido y no ha expirado.
+     *
+     * @param string $code
+     * @return bool
+     */
+    public function isVerificationCodeValid(string $code): bool
+    {
+        return $this->verification_code === strtoupper($code)
+            && $this->verification_code_expires_at
+            && $this->verification_code_expires_at->isFuture();
     }
 }

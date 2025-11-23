@@ -10,6 +10,7 @@ use App\Http\Controllers\EstadisticaController;
 use App\Http\Controllers\ConfirmacionController;
 use App\Http\Controllers\CsvUploadController;
 use App\Http\Controllers\TipoCuartoController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Settings\RoleController;
 use Illuminate\Support\Facades\Route;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -20,9 +21,9 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::get('/solicitudes/{solicitud}/download', [SolicitudController::class, 'download'])->name('solicitudes.download');
 
@@ -39,6 +40,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/usuarios/crear-usuario', [UsuariosController::class, 'storeUsuario'])->name('usuarios.storeUsuario');
     Route::get('/usuarios/{id}/edit', [UsuariosController::class, 'edit'])->name('usuarios.edit');
     Route::put('/usuarios/{id}', [UsuariosController::class, 'update'])->name('usuarios.update');
+    Route::patch('/usuarios/{user}/toggle-estado', [UsuariosController::class, 'toggleEstado'])->name('usuarios.toggleEstado');
 
     Route::get('/reservas/nueva', [ReservaViewController::class, 'create'])->name('reservas.create');
 
@@ -65,11 +67,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/lotes/revision/gad', [LoteController::class, 'revisionGad'])->name('lotes.revision-gad');
     Route::get('/lotes/{lote}/estancias', [LoteController::class, 'getEstancias'])->name('lotes.estancias');
     Route::put('/lotes/{lote}/enviar-vmt', [LoteController::class, 'submitToVmt'])->name('lotes.submit-vmt');
+    Route::post('/lotes/cambiar-estado-multiple', [LoteController::class, 'cambiarEstadoMultiple'])->name('lotes.cambiar-estado-multiple');
+
 
     // Rutas para la revisión y confirmación de VMT
     Route::get('/confirmacion', [ConfirmacionController::class, 'index'])->name('confirmacion.index');
     Route::get('/lotes/revision/vmt', [ConfirmacionController::class, 'revisionVmt'])->name('lotes.revision-vmt');
     Route::put('/lotes/{lote}/completar', [ConfirmacionController::class, 'completar'])->name('lotes.completar');
+    Route::post('/lotes/completar-multiple', [ConfirmacionController::class, 'completarMultiple'])->name('lotes.completar-multiple');
     Route::put('/estancias/{estancia}/aprobar-vmt', [EstanciaController::class, 'aprobarVmt'])->name('estancias.aprobar-vmt');
     Route::put('/estancias/{estancia}/rechazar-vmt', [EstanciaController::class, 'rechazarVmt'])->name('estancias.rechazar-vmt');
 

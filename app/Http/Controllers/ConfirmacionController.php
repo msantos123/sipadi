@@ -64,4 +64,28 @@ class ConfirmacionController extends Controller
 
         return response()->json(['message' => 'Lote completado con éxito.']);
     }
+
+    /**
+     * Completa múltiples lotes a la vez.
+     */
+    public function completarMultiple(Request $request)
+    {
+        $validated = $request->validate([
+            'lote_ids' => 'required|array',
+            'lote_ids.*' => 'exists:lotes,id'
+        ]);
+
+        // Actualizar todos los lotes seleccionados
+        Lote::whereIn('id', $validated['lote_ids'])
+            ->where('estado_lote', 'EN_REVISION_VMT')
+            ->update([
+                'estado_lote' => 'COMPLETADO',
+                'fecha_envio_completado' => now()
+            ]);
+
+        return response()->json([
+            'message' => 'Lotes completados exitosamente',
+            'count' => count($validated['lote_ids'])
+        ]);
+    }
 }

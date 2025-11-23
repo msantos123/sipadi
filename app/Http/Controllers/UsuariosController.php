@@ -8,9 +8,11 @@ use App\Models\Nacionalidad;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
+use App\Mail\UserVerificationMail;
 
 class UsuariosController extends Controller
 {
@@ -19,7 +21,7 @@ class UsuariosController extends Controller
         $search = $request->input('search');
         $authUser = auth()->user();
 
-        $query = User::query(); // Se inicia la consulta
+        $query = User::with(['roles', 'establecimiento', 'sucursal']); // Se inicia la consulta con roles, establecimiento y sucursal
 
         // ----> INICIO DE LA LÓGICA DE PERMISOS <----
         if ($authUser->can('gestionar-empleados')) {
@@ -88,8 +90,10 @@ class UsuariosController extends Controller
             'departamento_id' => 'nullable|exists:departamentos,id',
             'municipio_id' => 'nullable|exists:municipios,id',
             'email' => 'required|string|email|max:100|unique:users',
-            'password' => 'required|string|min:8|confirmed',
         ];
+
+        // Generar contraseña automática de 8 caracteres
+        $generatedPassword = strtoupper(Str::random(8));
 
         // Datos comunes de usuario
         $userData = [
@@ -102,7 +106,8 @@ class UsuariosController extends Controller
             'departamento_id' => $request->departamento_id,
             'municipio_id' => $request->municipio_id,
             'email' => $request->email,
-            'password' => $request->password,
+            'password' => $generatedPassword,
+            'must_change_password' => true,
         ];
 
         // Si 'asignar_a' está presente, es un empleado de establecimiento
@@ -137,12 +142,19 @@ class UsuariosController extends Controller
             $user->assignRole($role);
         }
 
+        // Guardar el código de verificación (mismo que la contraseña)
+        $user->verification_code = $generatedPassword;
+        $user->verification_code_expires_at = now()->addHours(24);
+        $user->save();
+        
+        // Enviar correo con la contraseña
+        Mail::to($user->email)->queue(new UserVerificationMail($user, $generatedPassword));
+
         return redirect()->route('usuarios.index')->with('success', 'Usuario creado exitosamente.');
     }
 
     public function storeUsuario(Request $request)
     {
-        //dd($request);
         $request->validate([
             'apellido_paterno' => 'required|string|max:50',
             'apellido_materno' => 'nullable|string|max:50',
@@ -153,9 +165,11 @@ class UsuariosController extends Controller
             'departamento_id' => 'nullable|exists:departamentos,id',
             'municipio_id' => 'nullable|exists:municipios,id',
             'email' => 'required|string|email|max:100|unique:users',
-            'password' => 'required|string|min:8|confirmed',
             'role_id' => 'required|string',
         ]);
+
+        // Generar contraseña automática de 8 caracteres
+        $generatedPassword = strtoupper(Str::random(8));
 
         $user = User::create([
             'apellido_paterno' => $request->apellido_paterno,
@@ -169,13 +183,22 @@ class UsuariosController extends Controller
             'establecimiento_id' => null,
             'sucursal_id' => null,
             'email' => $request->email,
-            'password' => $request->password,
+            'password' => $generatedPassword,
+            'must_change_password' => true,
 
         ]);
 
         $rol = $request->role_id;
 
         $user->assignRole($rol);
+
+        // Guardar el código de verificación (mismo que la contraseña)
+        $user->verification_code = $generatedPassword;
+        $user->verification_code_expires_at = now()->addHours(24);
+        $user->save();
+        
+        // Enviar correo con la contraseña
+        Mail::to($user->email)->queue(new UserVerificationMail($user, $generatedPassword));
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario creado exitosamente.');
     }
@@ -267,5 +290,23 @@ class UsuariosController extends Controller
         }
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario creado exitosamente.');
+    }
+
+    public function toggleEstado(User $user)
+    {
+        $authUser = auth()->user();
+
+        if (! $authUser->can('gestionar-empleados') && ! $authUser->can('gestionar-usuarios')) {
+            abort(403);
+        }
+
+        if ($authUser->can('gestionar-empleados') && $user->establecimiento_id !== $authUser->establecimiento_id) {
+            abort(403);
+        }
+
+        $user->estado = $user->estado === 'activo' ? 'inactivo' : 'activo';
+        $user->save();
+
+        return back()->with('success', 'Estado del usuario actualizado correctamente.');
     }
 }

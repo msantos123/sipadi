@@ -28,6 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('solicitudes');
+        // Para PostgreSQL, usamos DROP CASCADE para eliminar la tabla y sus dependencias
+        \DB::statement('DROP TABLE IF EXISTS solicitudes CASCADE');
     }
 };

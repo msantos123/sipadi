@@ -17,46 +17,46 @@ class PersonasSeeder extends Seeder
         $personas = [];
 
         $nombres = [
-            'Juan', 'María', 'Carlos', 'Ana', 'Luis', 'Laura', 'Pedro', 'Elena',
-            'Miguel', 'Sofia', 'Jorge', 'Isabel', 'Fernando', 'Carmen', 'Ricardo',
-            'Patricia', 'Roberto', 'Lucia', 'Daniel', 'Rosa', 'Javier', 'Marta',
-            'Alejandro', 'Teresa', 'Francisco', 'Claudia', 'Antonio', 'Gabriela',
-            'David', 'Adriana', 'José', 'Verónica', 'Manuel', 'Diana', 'Raúl',
-            'Natalia', 'Sergio', 'Olga', 'Andrés', 'Silvia', 'Eduardo', 'Monica',
-            'Victor', 'Raquel', 'Alberto', 'Beatriz', 'Pablo', 'Eva', 'Rodrigo', 'Inés'
+            'JUAN', 'MARÍA', 'CARLOS', 'ANA', 'LUIS', 'LAURA', 'PEDRO', 'ELENA',
+            'MIGUEL', 'SOFIA', 'JORGE', 'ISABEL', 'FERNANDO', 'CARMEN', 'RICARDO',
+            'PATRICIA', 'ROBERTO', 'LUCIA', 'DANIEL', 'ROSA', 'JAVIER', 'MARTA',
+            'ALEJANDRO', 'TERESA', 'FRANCISCO', 'CLAUDIA', 'ANTONIO', 'GABRIELA',
+            'DAVID', 'ADRIANA', 'JOSÉ', 'VERÓNICA', 'MANUEL', 'DIANA', 'RAÚL',
+            'NATALIA', 'SERGIO', 'OLGA', 'ANDRÉS', 'SILVIA', 'EDUARDO', 'MONICA',
+            'VICTOR', 'RAQUEL', 'ALBERTO', 'BEATRIZ', 'PABLO', 'EVA', 'RODRIGO', 'INÉS'
         ];
 
         $apellidosPaterno = [
-            'García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez',
-            'Sánchez', 'Pérez', 'Gómez', 'Martín', 'Jiménez', 'Ruiz', 'Hernández',
-            'Díaz', 'Moreno', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez', 'Navarro',
-            'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano',
-            'Blanco', 'Molina', 'Morales', 'Ortega', 'Delgado', 'Castro', 'Ortiz',
-            'Rubio', 'Marín', 'Sanz', 'Iglesias', 'Nuñez', 'Medina', 'Garrido'
+            'GARCÍA', 'RODRÍGUEZ', 'GONZÁLEZ', 'FERNÁNDEZ', 'LÓPEZ', 'MARTÍNEZ',
+            'SÁNCHEZ', 'PÉREZ', 'GÓMEZ', 'MARTÍN', 'JIMÉNEZ', 'RUIZ', 'HERNÁNDEZ',
+            'DÍAZ', 'MORENO', 'ÁLVAREZ', 'ROMERO', 'ALONSO', 'GUTIÉRREZ', 'NAVARRO',
+            'TORRES', 'DOMÍNGUEZ', 'VÁZQUEZ', 'RAMOS', 'GIL', 'RAMÍREZ', 'SERRANO',
+            'BLANCO', 'MOLINA', 'MORALES', 'ORTEGA', 'DELGADO', 'CASTRO', 'ORTIZ',
+            'RUBIO', 'MARÍN', 'SANZ', 'IGLESIAS', 'NUÑEZ', 'MEDINA', 'GARRIDO'
         ];
 
         $apellidosMaterno = [
-            'Flores', 'Vargas', 'Rojas', 'Cortez', 'Paredes', 'Quiroga', 'Mendez',
-            'Aguilar', 'Reyes', 'Cruz', 'Ponce', 'Rivera', 'Miranda', 'Bravo',
-            'Campos', 'Cardenas', 'Salazar', 'Peña', 'Cabrera', 'Aragon', 'Mendoza',
-            'Suarez', 'Zambrana', 'Velasco', 'Escobar', 'Franco', 'Ibañez', 'Pacheco',
-            'Galindo', 'Benitez', 'Acosta', 'Arce', 'Barrios', 'Calderon', 'Coria'
+            'FLORES', 'VARGAS', 'ROJAS', 'CORTEZ', 'PAREDES', 'QUIROGA', 'MENDEZ',
+            'AGUILAR', 'REYES', 'CRUZ', 'PONCE', 'RIVERA', 'MIRANDA', 'BRAVO',
+            'CAMPOS', 'CARDENAS', 'SALAZAR', 'PEÑA', 'CABRERA', 'ARAGON', 'MENDOZA',
+            'SUAREZ', 'ZAMBRANA', 'VELASCO', 'ESCOBAR', 'FRANCO', 'IBAÑEZ', 'PACHECO',
+            'GALINDO', 'BENITEZ', 'ACOSTA', 'ARCE', 'BARRIOS', 'CALDERON', 'CORIA'
         ];
 
-        $tiposDocumento = ['CI', 'Pasaporte'];
-        $sexos = ['Masculino', 'Femenino'];
-        $estadosCiviles = ['Soltero/a', 'Casado/a', 'Divorciado/a', 'Viudo/a'];
+        $tiposDocumento = ['ci', 'pasaporte'];
+        $sexos = ['M', 'F','O'];
+        $estadosCiviles = ['soltero', 'casado', 'divorciado', 'viudo', 'unión_libre'];
         $ocupaciones = [
-            'Ingeniero', 'Médico', 'Abogado', 'Arquitecto', 'Contador', 'Enfermero',
-            'Docente', 'Administrador', 'Comerciante', 'Estudiante', 'Técnico',
-            'Agricultor', 'Mecánico', 'Electricista', 'Programador', 'Diseñador',
-            'Periodista', 'Psicólogo', 'Chef', 'Analista', 'Consultor'
+            'INGENIERO', 'MÉDICO', 'ABOGADO', 'ARQUITECTO', 'CONTADOR', 'ENFERMERO',
+            'DOCENTE', 'ADMINISTRADOR', 'COMERCIANTE', 'ESTUDIANTE', 'TÉCNICO',
+            'AGRICULTOR', 'MECÁNICO', 'ELECTRICISTA', 'PROGRAMADOR', 'DISEÑADOR',
+            'PERIODISTA', 'PSICÓLOGO', 'CHEF', 'ANALISTA', 'CONSULTOR'
         ];
 
         $ciudadesExtranjeras = [
-            'Buenos Aires', 'São Paulo', 'Lima', 'Santiago', 'Bogotá', 'Quito',
-            'Caracas', 'Montevideo', 'Asunción', 'Ciudad de México', 'Madrid',
-            'Roma', 'París', 'Berlín', 'Londres', 'Nueva York', 'Miami', 'Toronto'
+            'BUENOS AIRES', 'SÃO PAULO', 'LIMA', 'SANTIAGO', 'BOGOTÁ', 'QUITO',
+            'CARACAS', 'MONTEVIDEO', 'ASUNCIÓN', 'CIUDAD DE MÉXICO', 'MADRID',
+            'ROMA', 'PARÍS', 'BERLÍN', 'LONDRES', 'NUEVA YORK', 'MIAMI', 'TORONTO'
         ];
 
         for ($i = 0; $i < 50; $i++) {

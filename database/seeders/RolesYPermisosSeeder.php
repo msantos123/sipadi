@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
@@ -56,12 +57,15 @@ class RolesYPermisosSeeder extends Seeder
         $roleDepartamental->givePermissionTo([
             'ver-parte-diario-departamental',
             'aprobar-parte-diario-departamental',
+            'gestionar-reportes',
+            'gestionar-estadisticas',
 
         ]);
 
         $rolePrestador = Role::create(['id' => 6, 'name' => 'Prestador']);
         $rolePrestador->givePermissionTo([
             'gestionar-empleados',
+            'registrar-estancia',
             'ver-estancia',
             'aprobar-estancias',
             'gestionar-cuartos',
@@ -224,5 +228,8 @@ class RolesYPermisosSeeder extends Seeder
             'sucursal_id' => null,
         ]);
         $userInstitucion->assignRole($roleInstitucion);
+
+        // Asegurar que la secuencia continue después del último ID insertado
+        DB::statement("SELECT setval(pg_get_serial_sequence('roles', 'id'), (SELECT MAX(id) FROM roles))");
     }
 }

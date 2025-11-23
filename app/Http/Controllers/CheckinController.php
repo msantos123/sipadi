@@ -24,31 +24,58 @@ class CheckinController extends Controller
     {
         $fecha = $request->input('fecha', now()->toDateString());
 
-        $user = auth()->user()->load('sucursal');
-        // Encontrar el lote para el establecimiento y fecha seleccionada, con sus relaciones
-        $lote = Lote::with(['establecimiento', 'departamento'])
-                    ->where('establecimiento_id', $user->establecimiento_id)
-                    ->where('sucursal_id', $user->sucursal_id ?? null)
-                    ->where('fecha_lote', $fecha)
-                    ->first();
-        //dd($user);
-
-
-        // Obtener las estancias de ese lote
-        $estancias = [];
-        if ($lote) {
-            $estancias = Estancia::where('lote_id', $lote->id)
-                ->with(['persona', 'reserva', 'dependientes.persona'])
-                ->where('es_titular', true)
-                ->orderBy('created_at', 'desc')
+        $user = auth()->user()->load(['sucursal', 'roles']);
+        
+        // Verificar si el usuario tiene rol Prestador (ID: 6)
+        $esPrestador = $user->roles->contains('id', 6);
+        
+        $lotes = collect();
+        $estancias = collect();
+        
+        if ($esPrestador) {
+            // Prestador: buscar lotes del establecimiento Y todas sus sucursales
+            $lotes = Lote::with(['establecimiento', 'departamento', 'sucursal'])
+                ->where('establecimiento_id', $user->establecimiento_id)
+                ->where('fecha_lote', $fecha)
                 ->get();
+            
+            // Obtener estancias de todos los lotes encontrados
+            if ($lotes->isNotEmpty()) {
+                $loteIds = $lotes->pluck('id');
+                $estancias = Estancia::whereIn('lote_id', $loteIds)
+                    ->with(['persona', 'reserva', 'dependientes.persona', 'lote.establecimiento', 'lote.sucursal'])
+                    ->where('es_titular', true)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+            
+            // Usar el primer lote como referencia (o el del establecimiento principal)
+            $lote = $lotes->first();
+        } else {
+            // Otros roles: buscar solo el lote específico de su ubicación
+            $lote = Lote::with(['establecimiento', 'departamento'])
+                ->where('establecimiento_id', $user->establecimiento_id)
+                ->where('sucursal_id', $user->sucursal_id ?? null)
+                ->where('fecha_lote', $fecha)
+                ->first();
+            
+            // Obtener las estancias de ese lote
+            if ($lote) {
+                $estancias = Estancia::where('lote_id', $lote->id)
+                    ->with(['persona', 'reserva', 'dependientes.persona', 'lote.establecimiento', 'lote.sucursal'])
+                    ->where('es_titular', true)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
         }
 
         return Inertia::render('Checkin/ViewEstancia', [
             'estancias' => $estancias,
             'lote' => $lote,
-            'fecha' => $fecha, // Pasamos la fecha a la vista para el filtro
+            'fecha' => $fecha,
             'sucursalUsuario' => $user->sucursal,
+            'esPrestador' => $esPrestador,
+            'totalLotes' => $lotes->count(),
         ]);
     }
 
@@ -57,11 +84,26 @@ class CheckinController extends Controller
      */
     public function create()
     {
+        $user = auth()->user();
+        
+        // Filtrar tipos de cuarto según el establecimiento y sucursal del usuario
+        $tipoCuartos = TipoCuarto::where('establecimiento_id', $user->establecimiento_id)
+            ->where(function ($query) use ($user) {
+                // Si el usuario tiene sucursal, buscar tipos de esa sucursal
+                if ($user->sucursal_id) {
+                    $query->where('sucursal_id', $user->sucursal_id);
+                } else {
+                    // Si no tiene sucursal, buscar tipos sin sucursal (casa matriz)
+                    $query->whereNull('sucursal_id');
+                }
+            })
+            ->get();
+        
         return Inertia::render('Checkin/CheckinWizard', [
             'nacionalidades' => Nacionalidad::all(),
             'departamentos' => Departamento::all(),
             'municipios' => Municipio::all(),
-            'tipoCuartos' => TipoCuarto::all(),
+            'tipoCuartos' => $tipoCuartos,
         ]);
     }
 

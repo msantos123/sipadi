@@ -41,7 +41,7 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         if ($user) {
-            $user->load('establecimiento.sucursales', 'departamento', 'municipio', 'sucursal');
+            $user->load('establecimiento.sucursales', 'departamento', 'municipio', 'sucursal', 'roles');
         }
 
         return [
@@ -60,6 +60,10 @@ class HandleInertiaRequests extends Middleware
                     'departamento' => $user->departamento,
                     'municipio' => $user->municipio,
                     'roles' => $user->getRoleNames(),
+                    'role_details' => $user->roles->map(fn ($role) => [
+                        'id' => $role->id,
+                        'name' => $role->name,
+                    ]),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { usePage, Link } from '@inertiajs/vue3';
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
@@ -33,113 +32,130 @@ interface NavItemWithPermission extends NavItem {
     permission?: string | string[];
 }
 
-// 2. Asigna los permisos necesarios a cada ruta
-const mainNavItems: NavItemWithPermission[] = [
-    {
-        title: 'Dashboard',
-        href: 'dashboard',
-        icon: LayoutGrid,
-        // No requiere permiso, se muestra siempre
-    },
+interface NavSection {
+    title: string;
+    items: NavItemWithPermission[];
+}
 
+// 2. Asigna los permisos necesarios a cada ruta, organizados por secciones
+const navSections: NavSection[] = [
     {
-        title: 'Usuarios',
-        href: '/usuarios', // Corregido a la ruta base
-        icon: User,
-        permission: ['gestionar-usuarios', 'gestionar-empleados'],
+        title: 'MÓDULO DE INICIO',
+        items: [
+            {
+                title: 'Dashboard',
+                href: 'dashboard',
+                icon: LayoutGrid,
+            },
+        ]
     },
     {
-        title: 'Roles y Permisos',
-        href: '/settings/roles',
-        icon: UserCheck,
-        permission: 'gestionar-roles',
+        title: 'MÓDULO DE USUARIOS',
+        items: [
+            {
+                title: 'Usuarios',
+                href: '/usuarios',
+                icon: User,
+                permission: ['gestionar-usuarios', 'gestionar-empleados'],
+            },
+            {
+                title: 'Roles y Permisos',
+                href: '/settings/roles',
+                icon: UserCheck,
+                permission: 'gestionar-roles',
+            },
+        ]
     },
     {
-        title: 'Cuartos',
-        href: '/cuartos',
-        icon: BedDouble,
-        permission: 'gestionar-cuartos',
+        title: 'MÓDULO DE REGISTRO DE ESTANCIA',
+        items: [
+            {
+                title: 'Habitaciones',
+                href: '/cuartos',
+                icon: BedDouble,
+                permission: 'gestionar-cuartos',
+            },
+            {
+                title: 'Registrar Estancia',
+                href: '/checkin',
+                icon: BookOpenCheck,
+                permission: 'registrar-estancia',
+            },
+            {
+                title: 'Ver Estancia',
+                href: '/estancias',
+                icon: Eye,
+                permission: 'ver-estancia',
+            },
+        ]
     },
     {
-        title: 'Registrar Estancia',
-        href: '/checkin',
-        icon: BookOpenCheck,
-        permission: 'registrar-estancia',
+        title: 'MÓDULO DE PARTES DIARIOS',
+        items: [
+            {
+                title: 'Ver Parte Diario Departamental',
+                href: '/revision',
+                icon: Eye,
+                permission: 'ver-parte-diario-departamental',
+            },
+            {
+                title: 'Ver Parte Diario Nacional',
+                href: '/confirmacion',
+                icon: Eye,
+                permission: 'ver-parte-diario-nacional',
+            },
+        ]
     },
     {
-        title: 'Ver Estancia',
-        href: '/estancias',
-        icon: Eye ,
-        permission: 'ver-estancia',
-    },
-    {
-        title: 'Ver Parte Diario Departamental',
-        href: '/revision',
-        icon: Eye ,
-        permission: 'ver-parte-diario-departamental',
-    },
-    {
-        title: 'Ver Parte Diario Nacional',
-        href: '/confirmacion',
-        icon: Eye ,
-        permission: 'ver-parte-diario-nacional',
-    },
-    {
-        title: 'Ver Solicitudes Informacion',
-        href: '/solicitudes',
-        permission: 'gestionar-solicitud',
-        icon: Eye ,
-    },
-    {
-        title: 'Subir Informacion',
-        href: '/csv-upload',
-        permission: 'gestionar-csv',
-        icon: Upload ,
-    },
-    {
-        title: 'Reportes',
-        href: '/reportes',
-        permission: 'gestionar-reportes',
-        icon: BookDown ,
-    },
-        {
-        title: 'Estadisticas',
-        href: '/estadisticas',
-        permission: 'gestionar-estadisticas',
-        icon: ChartNoAxesCombined ,
+        title: 'MÓDULO DE GESTIÓN',
+        items: [
+            {
+                title: 'Ver Solicitudes Información',
+                href: '/solicitudes',
+                permission: 'gestionar-solicitud',
+                icon: Eye,
+            },
+            {
+                title: 'Subir Información',
+                href: '/csv-upload',
+                permission: 'gestionar-csv',
+                icon: Upload,
+            },
+            {
+                title: 'Reportes',
+                href: '/reportes',
+                permission: 'gestionar-reportes',
+                icon: BookDown,
+            },
+            {
+                title: 'Estadísticas',
+                href: '/estadisticas',
+                permission: 'gestionar-estadisticas',
+                icon: ChartNoAxesCombined,
+            },
+        ]
     },
 ];
 
-// 3. Filtra los items del menú basados en los permisos del usuario
-const filteredMainNavItems = computed(() => {
-    return mainNavItems.filter(item => {
-        // Si el item no tiene la propiedad 'permission', siempre se muestra
-        if (!item.permission) {
-            return true;
-        }
+// 3. Filtra las secciones y sus items basados en los permisos del usuario
+const filteredNavSections = computed(() => {
+    return navSections.map(section => ({
+        title: section.title,
+        items: section.items.filter(item => {
+            // Si el item no tiene la propiedad 'permission', siempre se muestra
+            if (!item.permission) {
+                return true;
+            }
 
-        const requiredPermissions = Array.isArray(item.permission)
-            ? item.permission
-            : [item.permission];
-        // Si la tiene, comprueba si el usuario tiene ese permiso
-        return requiredPermissions.some(p => userPermissions.value.includes(p));
-    });
+            const requiredPermissions = Array.isArray(item.permission)
+                ? item.permission
+                : [item.permission];
+            // Si la tiene, comprueba si el usuario tiene ese permiso
+            return requiredPermissions.some(p => userPermissions.value.includes(p));
+        })
+    })).filter(section => section.items.length > 0); // Solo mostrar secciones con items
 });
 
-// --- FIN DE LA LÓGICA DE PERMISOS ---
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
 </script>
 
 <template>
@@ -157,12 +173,16 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <!-- 4. Usa la lista filtrada para renderizar el menú -->
-            <NavMain :items="filteredMainNavItems" />
+            <!-- 4. Renderiza las secciones con títulos -->
+            <div v-for="section in filteredNavSections" :key="section.title" class="mb-4">
+                <div class="px-3 py-2 text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider">
+                    {{ section.title }}
+                </div>
+                <NavMain :items="section.items" />
+            </div>
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

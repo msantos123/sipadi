@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import AppContent from '@/components/AppContent.vue';
 import axios from 'axios';
+import { X } from 'lucide-vue-next';
 
 // --- Interfaces de TypeScript para el tipado ---
 interface Departamento {
@@ -39,6 +40,7 @@ interface EstanciaReporteItem {
     lote?: {
         establecimiento?: { razon_social: string };
         sucursal?: { nombre_sucursal: string };
+        departamento?: { nombre: string };
     };
     tipo_cuarto?: {
         nombre: string;
@@ -49,30 +51,157 @@ const props = defineProps({
     departamentos: Array as PropType<Departamento[]>,
     establecimientos: Array as PropType<Establecimiento[]>,
     sucursales: Array as PropType<Sucursal[]>,
+    alcance: String as PropType<'nacional' | 'departamental' | 'establecimiento'>,
 });
 
 const form = useForm({
     fecha_inicio: '',
     fecha_fin: '',
-    departamento_id: '',
-    establecimiento_id: '',
-    sucursal_id: '',
+    departamento_ids: [] as number[],
+    establecimiento_ids: [] as number[],
+    sucursal_ids: [] as number[],
 });
 
 const reporteData = ref<EstanciaReporteItem[]>([]);
 const loading = ref(false);
 
-const filteredSucursales = computed(() => {
-    if (!form.establecimiento_id || !props.sucursales) {
-        return [];
-    }
-    return props.sucursales.filter((s: Sucursal) => s.id_casa_matriz === +form.establecimiento_id);
+// Estados de búsqueda
+const searchDepartamento = ref('');
+const searchEstablecimiento = ref('');
+const searchSucursal = ref('');
+const showDepartamentoDropdown = ref(false);
+const showEstablecimientoDropdown = ref(false);
+const showSucursalDropdown = ref(false);
+
+// Computed para filtrar opciones según búsqueda
+const filteredDepartamentos = computed(() => {
+    if (!props.departamentos) return [];
+    const search = searchDepartamento.value.toLowerCase();
+    return props.departamentos.filter(d => 
+        d.nombre.toLowerCase().includes(search) && 
+        !form.departamento_ids.includes(d.id)
+    );
 });
+
+const filteredEstablecimientos = computed(() => {
+    if (!props.establecimientos) return [];
+    const search = searchEstablecimiento.value.toLowerCase();
+    return props.establecimientos.filter(e => 
+        e.razon_social.toLowerCase().includes(search) && 
+        !form.establecimiento_ids.includes(e.id_establecimiento)
+    );
+});
+
+const filteredSucursales = computed(() => {
+    if (!props.sucursales) return [];
+    const search = searchSucursal.value.toLowerCase();
+    
+    // Si hay establecimientos seleccionados, filtrar por ellos
+    let sucursales = props.sucursales;
+    if (form.establecimiento_ids.length > 0) {
+        sucursales = sucursales.filter(s => 
+            form.establecimiento_ids.includes(s.id_casa_matriz)
+        );
+    }
+    
+    return sucursales.filter(s => 
+        s.nombre_sucursal.toLowerCase().includes(search) && 
+        !form.sucursal_ids.includes(s.id_sucursal)
+    );
+});
+
+// Computed para controlar visibilidad de filtros según alcance
+const canFilterByDepartment = computed(() => {
+    // Solo nacional y departamental pueden filtrar por departamento
+    return props.alcance === 'nacional' || props.alcance === 'departamental';
+});
+
+const canFilterByEstablishment = computed(() => {
+    // Nacional, departamental y prestador pueden filtrar por establecimiento
+    return props.alcance === 'nacional' || props.alcance === 'departamental' || props.alcance === 'establecimiento';
+});
+
+const canFilterBySucursal = computed(() => {
+    // Nacional, departamental y prestador pueden filtrar por sucursal
+    return props.alcance === 'nacional' || props.alcance === 'departamental' || props.alcance === 'establecimiento';
+});
+
+// Computed para obtener nombres de los tags seleccionados
+const selectedDepartamentos = computed(() => {
+    if (!props.departamentos) return [];
+    return props.departamentos.filter(d => form.departamento_ids.includes(d.id));
+});
+
+const selectedEstablecimientos = computed(() => {
+    if (!props.establecimientos) return [];
+    return props.establecimientos.filter(e => form.establecimiento_ids.includes(e.id_establecimiento));
+});
+
+const selectedSucursales = computed(() => {
+    if (!props.sucursales) return [];
+    return props.sucursales.filter(s => form.sucursal_ids.includes(s.id_sucursal));
+});
+
+// Funciones para agregar/remover tags
+const addDepartamento = (id: number) => {
+    if (!form.departamento_ids.includes(id)) {
+        form.departamento_ids.push(id);
+    }
+    searchDepartamento.value = '';
+    showDepartamentoDropdown.value = false;
+};
+
+const removeDepartamento = (id: number) => {
+    form.departamento_ids = form.departamento_ids.filter(i => i !== id);
+};
+
+const addEstablecimiento = (id: number) => {
+    if (!form.establecimiento_ids.includes(id)) {
+        form.establecimiento_ids.push(id);
+    }
+    searchEstablecimiento.value = '';
+    showEstablecimientoDropdown.value = false;
+};
+
+const removeEstablecimiento = (id: number) => {
+    form.establecimiento_ids = form.establecimiento_ids.filter(i => i !== id);
+    // Remover sucursales de este establecimiento
+    if (props.sucursales) {
+        const sucursalesToRemove = props.sucursales
+            .filter(s => s.id_casa_matriz === id)
+            .map(s => s.id_sucursal);
+        form.sucursal_ids = form.sucursal_ids.filter(i => !sucursalesToRemove.includes(i));
+    }
+};
+
+const addSucursal = (id: number) => {
+    if (!form.sucursal_ids.includes(id)) {
+        form.sucursal_ids.push(id);
+    }
+    searchSucursal.value = '';
+    showSucursalDropdown.value = false;
+};
+
+const removeSucursal = (id: number) => {
+    form.sucursal_ids = form.sucursal_ids.filter(i => i !== id);
+};
 
 const generarReporte = async () => {
     loading.value = true;
     try {
-        const response = await axios.post('/reporte/generar', form.data());
+        // Preparar datos solo con los campos que tienen valores
+        const payload: any = {};
+        
+        if (form.fecha_inicio) payload.fecha_inicio = form.fecha_inicio;
+        if (form.fecha_fin) payload.fecha_fin = form.fecha_fin;
+        if (form.departamento_ids.length > 0) payload.departamento_ids = form.departamento_ids;
+        if (form.establecimiento_ids.length > 0) payload.establecimiento_ids = form.establecimiento_ids;
+        if (form.sucursal_ids.length > 0) payload.sucursal_ids = form.sucursal_ids;
+        
+        console.log('Enviando payload:', payload);
+        
+        const response = await axios.post('/reporte/generar', payload);
+        console.log('Respuesta recibida:', response.data);
         reporteData.value = response.data;
     } catch (error) {
         console.error('Error al generar el reporte:', error);
@@ -83,25 +212,37 @@ const generarReporte = async () => {
 };
 
 const generarExcel = () => {
-    const params = new URLSearchParams(form.data()).toString();
-    const url = `/reporte/generar-excel?${params}`;
+    const params = new URLSearchParams();
+    
+    if (form.fecha_inicio) params.append('fecha_inicio', form.fecha_inicio);
+    if (form.fecha_fin) params.append('fecha_fin', form.fecha_fin);
+    
+    form.departamento_ids.forEach(id => params.append('departamento_ids[]', id.toString()));
+    form.establecimiento_ids.forEach(id => params.append('establecimiento_ids[]', id.toString()));
+    form.sucursal_ids.forEach(id => params.append('sucursal_ids[]', id.toString()));
+    
+    const url = `/reporte/generar-excel?${params.toString()}`;
     window.open(url, '_blank');
 };
 
 const limpiarFiltros = () => {
     form.reset();
     reporteData.value = [];
+    searchDepartamento.value = '';
+    searchEstablecimiento.value = '';
+    searchSucursal.value = '';
 };
 </script>
 
 <template>
     <AppLayout>
         <AppContent>
-            <Heading>Reporte de Estancias</Heading>
+            <Heading title="Reporte de Estancias" />
 
             <div class="p-6 mt-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
                 <!-- Filtros -->
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <!-- Fechas -->
                     <div>
                         <label for="fecha_inicio" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha Inicio</label>
                         <input type="date" id="fecha_inicio" v-model="form.fecha_inicio" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
@@ -110,26 +251,135 @@ const limpiarFiltros = () => {
                         <label for="fecha_fin" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha Fin</label>
                         <input type="date" id="fecha_fin" v-model="form.fecha_fin" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
                     </div>
-                    <div>
-                        <label for="departamento" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Departamento</label>
-                        <select id="departamento" v-model="form.departamento_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                            <option value="">Todos</option>
-                            <option v-for="depto in departamentos" :key="depto.id" :value="depto.id">{{ depto.nombre }}</option>
-                        </select>
+
+                    <!-- Búsqueda de Departamentos (solo para nacional y departamental) -->
+                    <div v-if="canFilterByDepartment" class="relative">
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Departamentos</label>
+                        <input 
+                            type="text" 
+                            v-model="searchDepartamento"
+                            @focus="showDepartamentoDropdown = true"
+                            @blur="showDepartamentoDropdown = false"
+                            placeholder="Buscar departamento..."
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                        >
+                        <!-- Dropdown de resultados -->
+                        <div v-if="showDepartamentoDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
+                            <button
+                                v-for="depto in filteredDepartamentos"
+                                :key="depto.id"
+                                @mousedown.prevent="addDepartamento(depto.id)"
+                                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white"
+                            >
+                                {{ depto.nombre }}
+                            </button>
+                            <div v-if="filteredDepartamentos.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No hay resultados
+                            </div>
+                        </div>
+                        <!-- Tags seleccionados -->
+                        <div v-if="selectedDepartamentos.length > 0" class="flex flex-wrap gap-2 mt-2">
+                            <span
+                                v-for="depto in selectedDepartamentos"
+                                :key="depto.id"
+                                class="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900 dark:text-blue-300"
+                            >
+                                {{ depto.nombre }}
+                                <button
+                                    @click="removeDepartamento(depto.id)"
+                                    class="ml-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                                >
+                                    <X :size="14" />
+                                </button>
+                            </span>
+                        </div>
                     </div>
-                    <div>
-                        <label for="establecimiento" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Establecimiento</label>
-                        <select id="establecimiento" v-model="form.establecimiento_id" @change="form.sucursal_id = ''" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white">
-                            <option value="">Todos</option>
-                            <option v-for="est in establecimientos" :key="est.id_establecimiento" :value="est.id_establecimiento">{{ est.razon_social }}</option>
-                        </select>
+
+                    <!-- Búsqueda de Establecimientos (para nacional, departamental y prestador) -->
+                    <div v-if="canFilterByEstablishment" class="relative">
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Establecimientos</label>
+                        <input 
+                            type="text" 
+                            v-model="searchEstablecimiento"
+                            @focus="showEstablecimientoDropdown = true"
+                            @blur="showEstablecimientoDropdown = false"
+                            placeholder="Buscar establecimiento..."
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                        >
+                        <!-- Dropdown de resultados -->
+                        <div v-if="showEstablecimientoDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
+                            <button
+                                v-for="est in filteredEstablecimientos"
+                                :key="est.id_establecimiento"
+                                @mousedown.prevent="addEstablecimiento(est.id_establecimiento)"
+                                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white"
+                            >
+                                {{ est.razon_social }}
+                            </button>
+                            <div v-if="filteredEstablecimientos.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No hay resultados
+                            </div>
+                        </div>
+                        <!-- Tags seleccionados -->
+                        <div v-if="selectedEstablecimientos.length > 0" class="flex flex-wrap gap-2 mt-2">
+                            <span
+                                v-for="est in selectedEstablecimientos"
+                                :key="est.id_establecimiento"
+                                class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-300"
+                            >
+                                {{ est.razon_social }}
+                                <button
+                                    @click="removeEstablecimiento(est.id_establecimiento)"
+                                    class="ml-2 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                                >
+                                    <X :size="14" />
+                                </button>
+                            </span>
+                        </div>
                     </div>
-                    <div>
-                        <label for="sucursal" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sucursal</label>
-                        <select id="sucursal" v-model="form.sucursal_id" :disabled="!form.establecimiento_id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white disabled:opacity-50">
-                            <option value="">Todas</option>
-                            <option v-for="suc in filteredSucursales" :key="suc.id_sucursal" :value="suc.id_sucursal">{{ suc.nombre_sucursal }}</option>
-                        </select>
+
+                    <!-- Búsqueda de Sucursales (para nacional, departamental y prestador) -->
+                    <div v-if="canFilterBySucursal" class="relative">
+                        <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sucursales</label>
+                        <input 
+                            type="text" 
+                            v-model="searchSucursal"
+                            @focus="showSucursalDropdown = true"
+                            @blur="showSucursalDropdown = false"
+                            placeholder="Buscar sucursal..."
+                            :disabled="(alcance === 'nacional' || alcance === 'departamental') && form.establecimiento_ids.length === 0"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white disabled:opacity-50"
+                        >
+                        <!-- Dropdown de resultados -->
+                        <div v-if="showSucursalDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
+                            <button
+                                v-for="suc in filteredSucursales"
+                                :key="suc.id_sucursal"
+                                @mousedown.prevent="addSucursal(suc.id_sucursal)"
+                                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white"
+                            >
+                                {{ suc.nombre_sucursal }}
+                            </button>
+                            <div v-if="filteredSucursales.length === 0" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                No hay resultados
+                            </div>
+                        </div>
+                        <!-- Tags seleccionados -->
+                        <div v-if="selectedSucursales.length > 0" class="flex flex-wrap gap-2 mt-2">
+                            <span
+                                v-for="suc in selectedSucursales"
+                                :key="suc.id_sucursal"
+                                class="inline-flex items-center px-3 py-1 text-sm font-medium text-purple-800 bg-purple-100 rounded-full dark:bg-purple-900 dark:text-purple-300"
+                            >
+                                {{ suc.nombre_sucursal }}
+                                <button
+                                    @click="removeSucursal(suc.id_sucursal)"
+                                    class="ml-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
+                                >
+                                    <X :size="14" />
+                                </button>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -157,6 +407,7 @@ const limpiarFiltros = () => {
                                 <th scope="col" class="px-6 py-3">Documento</th>
                                 <th scope="col" class="px-6 py-3">Origen</th>
                                 <th scope="col" class="px-6 py-3">Establecimiento/Sucursal</th>
+                                <th scope="col" class="px-6 py-3">Departamento Est./Suc.</th>
                                 <th scope="col" class="px-6 py-3">Cuarto</th>
                                 <th scope="col" class="px-6 py-3">Ingreso/Salida</th>
                             </tr>
@@ -175,6 +426,9 @@ const limpiarFiltros = () => {
                                 <td class="px-6 py-4">
                                     {{ item.lote?.establecimiento?.razon_social }}
                                     <div class="text-xs text-green-500">{{ item.lote?.sucursal?.nombre_sucursal }}</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    {{ item.lote?.departamento?.nombre }}
                                 </td>
                                 <td class="px-6 py-4">
                                     #{{ item.nro_cuarto }}

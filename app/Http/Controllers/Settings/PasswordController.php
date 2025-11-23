@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -30,10 +31,21 @@ class PasswordController extends Controller
             'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
-        $request->user()->update([
+        $user = $request->user();
+        
+        // Actualizar contraseña y marcar que ya no necesita cambiarla
+        $user->update([
             'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
         ]);
 
-        return back();
+        // Cerrar sesión para que el usuario inicie sesión con la nueva contraseña
+        Auth::guard('web')->logout();
+        
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Contraseña actualizada exitosamente. Por favor, inicia sesión con tu nueva contraseña.');
     }
+
 }

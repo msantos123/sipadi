@@ -45,8 +45,18 @@ class LoteController extends Controller
     public function revisionGad()
     {
         // TODO: Añadir autorización para que solo usuarios GAD puedan ver esto.
-        $lotes = Lote::whereIn('estado_lote', ['EN_REVISION_GAD', 'EN_REVISION_VMT', 'COMPLETADO'])
-
+        
+        $user = auth()->user();
+        
+        // Filtrar lotes por departamento del usuario
+        $query = Lote::whereIn('estado_lote', ['EN_REVISION_GAD', 'EN_REVISION_VMT', 'COMPLETADO']);
+        
+        // Si el usuario tiene departamento asignado, filtrar por ese departamento
+        if ($user->departamento_id) {
+            $query->where('departamento_id', $user->departamento_id);
+        }
+        
+        $lotes = $query
             ->with('establecimiento')
             ->with('sucursales')
             ->with('usuarioRegistra') // Carga la relación para obtener el nombre
@@ -91,6 +101,30 @@ class LoteController extends Controller
     public function confirmacionView()
     {
         return Inertia::render('Checkin/ViewConfirmacion');
+    }
+
+    /**
+     * Cambia el estado de múltiples lotes.
+     */
+    public function cambiarEstadoMultiple(Request $request)
+    {
+        $validated = $request->validate([
+            'lote_ids' => 'required|array',
+            'lote_ids.*' => 'exists:lotes,id',
+            'estado' => 'required|in:PENDIENTE_DE_ENVIO,EN_REVISION_GAD,EN_REVISION_VMT,COMPLETADO'
+        ]);
+
+        // Actualizar todos los lotes seleccionados
+        Lote::whereIn('id', $validated['lote_ids'])
+            ->update([
+                'estado_lote' => $validated['estado'],
+                'fecha_envio_nacional' => $validated['estado'] === 'EN_REVISION_VMT' ? now() : null
+            ]);
+
+        return response()->json([
+            'message' => 'Estados actualizados exitosamente',
+            'count' => count($validated['lote_ids'])
+        ]);
     }
 
 }

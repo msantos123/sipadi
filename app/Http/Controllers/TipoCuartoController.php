@@ -38,7 +38,6 @@ class TipoCuartoController extends Controller
         }
 
         $selected_location_id = $request->input('location_id');
-        $tiposRequeridos = ['Simple', 'Doble', 'Triple', 'Cuadruple', 'Familiar'];
         $cuartosData = collect([]);
 
         if ($selected_location_id) {
@@ -51,14 +50,13 @@ class TipoCuartoController extends Controller
             } elseif ($type === 'suc') {
                 $query->where('sucursal_id', $id);
             }
-            $cuartosExistentes = $query->get()->keyBy('nombre');
-
-            $cuartosData = collect($tiposRequeridos)->map(function ($nombre) use ($cuartosExistentes) {
-                $existente = $cuartosExistentes->get($nombre);
+            
+            // Cargar todos los tipos existentes para esta ubicación
+            $cuartosData = $query->get()->map(function ($cuarto) {
                 return [
-                    'nombre' => $nombre,
-                    'nro_habitaciones' => $existente ? $existente->nro_habitaciones : 0,
-                    'nro_personas' => $existente ? $existente->nro_personas : 0,
+                    'nombre' => $cuarto->nombre,
+                    'nro_habitaciones' => $cuarto->nro_habitaciones,
+                    'nro_personas' => $cuarto->nro_personas,
                 ];
             });
         }
@@ -73,7 +71,7 @@ class TipoCuartoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'cuartos' => 'required|array|min:5',
+            'cuartos' => 'required|array',
             'cuartos.*.nombre' => 'required|string',
             'cuartos.*.nro_habitaciones' => 'required|integer|min:0',
             'cuartos.*.nro_personas' => 'required|integer|min:0',
@@ -82,19 +80,30 @@ class TipoCuartoController extends Controller
 
         [$type, $id] = explode('-', $validated['location_id']);
 
-        foreach ($validated['cuartos'] as $cuartoData) {
-            $attributes = [
-                'nombre' => $cuartoData['nombre'],
-            ];
+        // Determinar los atributos de ubicación
+        $locationAttributes = [];
+        if ($type === 'est') {
+            $locationAttributes['establecimiento_id'] = $id;
+            $locationAttributes['sucursal_id'] = null;
+        } elseif ($type === 'suc') {
+            $sucursal = Sucursal::findOrFail($id);
+            $locationAttributes['establecimiento_id'] = $sucursal->id_casa_matriz;
+            $locationAttributes['sucursal_id'] = $id;
+        }
 
-            if ($type === 'est') {
-                $attributes['establecimiento_id'] = $id;
-                $attributes['sucursal_id'] = null;
-            } elseif ($type === 'suc') {
-                $sucursal = Sucursal::findOrFail($id);
-                $attributes['establecimiento_id'] = $sucursal->id_casa_matriz;
-                $attributes['sucursal_id'] = $id;
-            }
+        // Obtener nombres de los tipos enviados
+        $nombresEnviados = collect($validated['cuartos'])->pluck('nombre')->toArray();
+
+        // Eliminar tipos que ya no están en la lista
+        TipoCuarto::where($locationAttributes)
+            ->whereNotIn('nombre', $nombresEnviados)
+            ->delete();
+
+        // Actualizar o crear los tipos enviados
+        foreach ($validated['cuartos'] as $cuartoData) {
+            $attributes = array_merge($locationAttributes, [
+                'nombre' => $cuartoData['nombre'],
+            ]);
 
             TipoCuarto::updateOrCreate(
                 $attributes,

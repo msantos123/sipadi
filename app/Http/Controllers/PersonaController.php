@@ -82,13 +82,19 @@ class PersonaController extends Controller
         $query = Persona::query();
 
         if ($request->has('nro_documento') && $request->nro_documento) {
-            $query->where('nro_documento', 'like', '%' . $request->nro_documento . '%');
+            // Convertir a mayúsculas para que coincida con los datos estandarizados
+            $nroDocumento = strtoupper($request->nro_documento);
+            $query->where('nro_documento', 'like', '%' . $nroDocumento . '%');
         }
         if ($request->has('nombres') && $request->nombres) {
-            $query->where('nombres', 'like', '%' . $request->nombres . '%');
+            // Convertir a mayúsculas para que coincida con los datos estandarizados
+            $nombres = strtoupper($request->nombres);
+            $query->where('nombres', 'like', '%' . $nombres . '%');
         }
         if ($request->has('apellido_paterno') && $request->apellido_paterno) {
-            $query->where('apellido_paterno', 'like', '%' . $request->apellido_paterno . '%');
+            // Convertir a mayúsculas para que coincida con los datos estandarizados
+            $apellidoPaterno = strtoupper($request->apellido_paterno);
+            $query->where('apellido_paterno', 'like', '%' . $apellidoPaterno . '%');
         }
 
         return response()->json($query->take(10)->get());
@@ -100,7 +106,8 @@ class PersonaController extends Controller
             'documento' => 'required|string|min:3',
         ]);
 
-        $query = $request->input('documento');
+        // Convertir a mayúsculas para que coincida con los datos estandarizados
+        $query = strtoupper($request->input('documento'));
 
         $personas = Persona::where('nro_documento', 'like', "{$query}%")
             ->select(['id', 'nombres', 'apellido_paterno', 'apellido_materno', 'nro_documento'])
