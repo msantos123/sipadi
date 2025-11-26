@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { BookOpen, ChartNoAxesCombined, BookDown, Upload, Eye, Folder, LayoutGrid, User, UserCheck, BedDouble, BookOpenCheck   } from 'lucide-vue-next';
+import { UserSearch, BookOpen, ChartNoAxesCombined, BookDown, Upload, Eye, Folder, LayoutGrid, User, UserCheck, BedDouble, BookOpenCheck   } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 // --- INICIO DE LA LÓGICA DE PERMISOS ---
@@ -120,6 +120,12 @@ const navSections: NavSection[] = [
                 href: '/csv-upload',
                 permission: 'gestionar-csv',
                 icon: Upload,
+            },
+            {
+                title: 'Busqueda',
+                href: '/busqueda',
+                //permission: 'gestionar-busqueda',
+                icon: UserSearch,
             },
             {
                 title: 'Reportes',

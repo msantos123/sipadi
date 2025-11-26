@@ -11,6 +11,7 @@ use App\Http\Controllers\ConfirmacionController;
 use App\Http\Controllers\CsvUploadController;
 use App\Http\Controllers\TipoCuartoController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\Settings\RoleController;
 use Illuminate\Support\Facades\Route;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -98,6 +99,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
      // Rutas para Estadísticas
     Route::get('/estadisticas', [EstadisticaController::class, 'index'])->name('estadisticas.index');
     Route::post('/estadisticas/generar', [EstadisticaController::class, 'generar'])->name('estadisticas.generar');
+
+    // Rutas para Búsqueda Avanzada
+    Route::get('/busqueda', [BusquedaController::class, 'index'])->name('busqueda.index');
+    Route::get('/busqueda/search', [BusquedaController::class, 'search'])->name('busqueda.search');
 
         });
 
