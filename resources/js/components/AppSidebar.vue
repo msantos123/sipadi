@@ -124,7 +124,7 @@ const navSections: NavSection[] = [
             {
                 title: 'Busqueda',
                 href: '/busqueda',
-                //permission: 'gestionar-busqueda',
+                permission: 'gestionar-busqueda',
                 icon: UserSearch,
             },
             {
