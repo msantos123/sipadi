@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { template } from 'lodash';
+import Swal from 'sweetalert2'
 
 const lotes = ref<any[]>([]);
 const selectedLote = ref<any | null>(null);
@@ -293,23 +294,48 @@ function toggleSelectAllLotes() {
 
 async function cambiarEstadoLotesSeleccionados() {
     if (selectedLotes.value.size === 0) {
-        alert('Seleccione al menos un lote');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'Seleccione al menos un lote'
+        });
         return;
     }
     
-    if (confirm(`¿Está seguro de enviar ${selectedLotes.value.size} lote(s) a Revisión VMT?`)) {
+    const result = await Swal.fire({
+        title: '¿Está seguro?',
+        text: `¿Desea enviar ${selectedLotes.value.size} lote(s) a Revisión VMT?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
         try {
             await axios.post('/lotes/cambiar-estado-multiple', {
                 lote_ids: Array.from(selectedLotes.value),
                 estado: 'EN_REVISION_VMT'
             });
-            alert('Lotes enviados a VMT exitosamente');
+            
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: 'Lotes enviados a VMT exitosamente'
+            });
+            
             selectedLotes.value.clear();
             selectAllLotes.value = false;
             fetchLotes();
         } catch (error) {
             console.error('Error al cambiar estados:', error);
-            alert('Error al enviar los lotes a VMT. Por favor, intente nuevamente.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al enviar los lotes a VMT. Por favor, intente nuevamente.'
+            });
         }
     }
 }

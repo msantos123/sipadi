@@ -4,6 +4,7 @@ import { Head, usePage, Link, router } from '@inertiajs/vue3';
 import type { PageProps } from '@inertiajs/core';
 import { computed, ref, watch } from 'vue';
 import { debounce } from 'lodash';
+import Swal from 'sweetalert2';
 
 // Componentes de UI
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -106,13 +107,42 @@ watch(searchQuery, () => {
 
 const toggleEstado = (usuario: Usuario) => {
     const nextLabel = usuario.estado === 'activo' ? 'inactivar' : 'activar';
-    if (!window.confirm(`¿Desea ${nextLabel} al usuario ${usuario.nombres}?`)) {
-        return;
-    }
-
-    router.patch(`/usuarios/${usuario.id}/toggle-estado`, {}, {
-        preserveScroll: true,
-        preserveState: true,
+    const action = usuario.estado === 'activo' ? 'Inactivar' : 'Activar';
+    
+    Swal.fire({
+        title: `¿${action} usuario?`,
+        html: `¿Desea ${nextLabel} al usuario <strong>${usuario.nombres} ${usuario.apellido_paterno}</strong>?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: action,
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.patch(`/usuarios/${usuario.id}/toggle-estado`, {}, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: `Usuario ${nextLabel}do correctamente`,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                },
+                onError: () => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'No se pudo cambiar el estado del usuario',
+                        icon: 'error',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            });
+        }
     });
 };
 
@@ -165,7 +195,7 @@ const breadcrumbs = [
                             <TableHead>CI</TableHead>
                             <TableHead>Celular</TableHead>
                             <TableHead>Rol</TableHead>
-                            <TableHead>Establecimiento/Sucursal</TableHead>
+                            <TableHead>Est./Suc.</TableHead>
                             <TableHead>Estado</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead class="text-right">Acciones</TableHead>

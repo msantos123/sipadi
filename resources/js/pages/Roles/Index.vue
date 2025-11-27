@@ -4,6 +4,7 @@ import { Head, usePage, Link, router } from '@inertiajs/vue3';
 import type { PageProps } from '@inertiajs/core';
 import { computed, ref, watch, watchEffect } from 'vue';
 import { debounce } from 'lodash';
+import Swal from 'sweetalert2';
 
 // Componentes de UI
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -64,9 +65,39 @@ const breadcrumbs = [
 ];
 
 const destroy = (id: number) => {
-    if (confirm('¿Estás seguro de que quieres eliminar este rol?')) {
-        router.delete(`/settings/roles/${id}`);
-    }
+    Swal.fire({
+        title: '¿Eliminar rol?',
+        text: '¿Estás seguro de que quieres eliminar este rol? Esta acción no se puede revertir.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(`/settings/roles/${id}`, {
+                onSuccess: () => {
+                    Swal.fire({
+                        title: '¡Eliminado!',
+                        text: 'El rol ha sido eliminado correctamente',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                },
+                onError: () => {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'No se pudo eliminar el rol',
+                        icon: 'error',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            });
+        }
+    });
 };
 </script>
 

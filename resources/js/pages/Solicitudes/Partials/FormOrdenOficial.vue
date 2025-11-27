@@ -6,6 +6,11 @@ import { Label } from '@/components/ui/label';
 
 const institucion = ref('');
 
+const toUpperCase = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    input.value = input.value.toUpperCase();
+};
+
 defineExpose({
     institucion,
 });
@@ -20,6 +25,7 @@ defineExpose({
                 id="institucion"
                 v-model="institucion"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
     </div>

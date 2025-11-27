@@ -12,6 +12,7 @@ use App\Http\Controllers\CsvUploadController;
 use App\Http\Controllers\TipoCuartoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\BusquedaController;
+use App\Http\Controllers\UbicacionesController;
 use App\Http\Controllers\Settings\RoleController;
 use Illuminate\Support\Facades\Route;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -103,6 +104,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rutas para Búsqueda Avanzada
     Route::get('/busqueda', [BusquedaController::class, 'index'])->name('busqueda.index');
     Route::get('/busqueda/search', [BusquedaController::class, 'search'])->name('busqueda.search');
+
+    // Rutas para Gestión de Ubicaciones
+    Route::get('/ubicaciones', [UbicacionesController::class, 'index'])->name('ubicaciones.index');
+    
+    // Nacionalidades
+    Route::post('/ubicaciones/nacionalidades', [UbicacionesController::class, 'storeNacionalidad'])->name('ubicaciones.nacionalidades.store');
+    Route::put('/ubicaciones/nacionalidades/{nacionalidad}', [UbicacionesController::class, 'updateNacionalidad'])->name('ubicaciones.nacionalidades.update');
+    Route::delete('/ubicaciones/nacionalidades/{nacionalidad}', [UbicacionesController::class, 'destroyNacionalidad'])->name('ubicaciones.nacionalidades.destroy');
+    
+    // Departamentos
+    Route::post('/ubicaciones/departamentos', [UbicacionesController::class, 'storeDepartamento'])->name('ubicaciones.departamentos.store');
+    Route::put('/ubicaciones/departamentos/{departamento}', [UbicacionesController::class, 'updateDepartamento'])->name('ubicaciones.departamentos.update');
+    Route::delete('/ubicaciones/departamentos/{departamento}', [UbicacionesController::class, 'destroyDepartamento'])->name('ubicaciones.departamentos.destroy');
+    
+    // Municipios
+    Route::post('/ubicaciones/municipios', [UbicacionesController::class, 'storeMunicipio'])->name('ubicaciones.municipios.store');
+    Route::put('/ubicaciones/municipios/{municipio}', [UbicacionesController::class, 'updateMunicipio'])->name('ubicaciones.municipios.update');
+    Route::delete('/ubicaciones/municipios/{municipio}', [UbicacionesController::class, 'destroyMunicipio'])->name('ubicaciones.municipios.destroy');
 
         });
 

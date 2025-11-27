@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import Swal from 'sweetalert2'
+
 import type { PropType } from 'vue'
 
 // --- Interfaces ---
@@ -156,13 +158,36 @@ function filtrarPorFecha(newDate: string) {
 async function submitLote() {
     if (!canSubmitLote.value || !props.lote) return;
     console.log('Enviando lote:', props.lote);
-    if (confirm('¿Está seguro de que desea cerrar y enviar el reporte del día? Esta acción no se puede deshacer.')) {
+
+    const result = await Swal.fire({
+        title: '¿Está seguro?',
+        text: "¿Desea cerrar y enviar el reporte del día? Esta acción no se puede deshacer.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, enviar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
         try {
             await axios.put(`/lotes/${props.lote.id}/enviar-gad`);
+            
+            await Swal.fire(
+                '¡Enviado!',
+                'El lote ha sido enviado correctamente.',
+                'success'
+            );
+
             router.visit(window.location.href, { preserveScroll: true, preserveState: true });
         } catch (error) {
             console.error('Error al enviar el lote:', error);
-            // Aquí se podría mostrar una notificación de error
+            Swal.fire(
+                'Error',
+                'Hubo un problema al enviar el lote.',
+                'error'
+            );
         }
     }
 }

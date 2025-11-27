@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import { Trash2, Plus } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 
 interface TipoCuarto {
     nombre: string;
@@ -104,8 +105,23 @@ const submit = () => {
     form.post('/cuartos', {
         preserveScroll: true,
         onSuccess: () => {
-            // Opcional: mostrar notificación de éxito
+            Swal.fire({
+                title: '¡Éxito!',
+                text: 'Los cambios se guardaron correctamente',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
         },
+        onError: (errors) => {
+            console.error('Errores:', errors);
+            Swal.fire({
+                title: 'Error',
+                text: 'No se pudieron guardar los cambios',
+                icon: 'error',
+                confirmButtonText: 'Aceptar'
+            });
+        }
     });
 };
 

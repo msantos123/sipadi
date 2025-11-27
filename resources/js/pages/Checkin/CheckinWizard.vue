@@ -8,6 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import type { Nacionalidad, Municipio, Departamento, TipoCuarto } from '@/types'
+import Swal from 'sweetalert2'
 
 // Importa los componentes de cada paso
 import Step1Reserva from './Step1Reserva.vue'
@@ -72,7 +73,12 @@ async function submitCheckin() {
 
   try {
     const response = await axios.post('/checkin', payload);
-    alert(response.data.message || 'Check-in registrado exitosamente.');
+    await Swal.fire({
+      title: '¡Éxito!',
+      text: response.data.message || 'Check-in registrado exitosamente.',
+      icon: 'success',
+      confirmButtonText: 'Aceptar'
+    });
     checkinStore.reset();
     currentStep.value = 1;
   } catch (error: any) {
@@ -82,20 +88,36 @@ async function submitCheckin() {
         const errors = error.response.data.errors;
         console.error('Errores de validación:', errors);
         // Construir un mensaje de error legible
-        let errorMessage = 'Por favor, corrige los siguientes errores:\n';
+        let errorMessage = '';
         for (const key in errors) {
             errorMessage += `- ${errors[key].join(', ')}\n`;
         }
-        alert(errorMessage);
+        Swal.fire({
+          title: 'Error de Validación',
+          text: 'Por favor, corrige los siguientes errores:',
+          html: `<pre style="text-align: left;">${errorMessage}</pre>`,
+          icon: 'error',
+          confirmButtonText: 'Entendido'
+        });
       } else {
         // Otros errores del servidor
         console.error('Error del servidor:', error.response.data);
-        alert(error.response.data.message || 'Ocurrió un error en el servidor.');
+        Swal.fire({
+          title: 'Error del Servidor',
+          text: error.response.data.message || 'Ocurrió un error en el servidor.',
+          icon: 'error',
+          confirmButtonText: 'Cerrar'
+        });
       }
     } else {
       // Errores de red u otros
       console.error('Error de red:', error);
-      alert('Ocurrió un error de red. Por favor, revisa tu conexión e inténtalo de nuevo.');
+      Swal.fire({
+        title: 'Error de Red',
+        text: 'Ocurrió un error de red. Por favor, revisa tu conexión e inténtalo de nuevo.',
+        icon: 'error',
+        confirmButtonText: 'Cerrar'
+      });
     }
   } finally {
     isSubmitting.value = false;

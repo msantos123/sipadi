@@ -162,7 +162,7 @@ const addDepartamento = (id: number) => {
         form.departamento_ids.push(id);
     }
     searchDepartamento.value = '';
-    showDepartamentoDropdown.value = false;
+    // No cerrar el dropdown para permitir selecciones múltiples
 };
 
 const removeDepartamento = (id: number) => {
@@ -174,7 +174,7 @@ const addEstablecimiento = (id: number) => {
         form.establecimiento_ids.push(id);
     }
     searchEstablecimiento.value = '';
-    showEstablecimientoDropdown.value = false;
+    // No cerrar el dropdown para permitir selecciones múltiples
 };
 
 const removeEstablecimiento = (id: number) => {
@@ -193,7 +193,7 @@ const addSucursal = (id: number) => {
         form.sucursal_ids.push(id);
     }
     searchSucursal.value = '';
-    showSucursalDropdown.value = false;
+    // No cerrar el dropdown para permitir selecciones múltiples
 };
 
 const removeSucursal = (id: number) => {
@@ -398,6 +398,18 @@ function submit() {
     },
   });
 }
+
+function limpiarFiltros() {
+  form.reset();
+  form.fecha_inicio = '';
+  form.fecha_fin = '';
+  form.departamento_ids = [];
+  form.establecimiento_ids = [];
+  form.sucursal_ids = [];
+  
+  // Recargar la página sin filtros
+  window.location.href = '/estadisticas';
+}
 </script>
 
 <template>
@@ -428,14 +440,35 @@ function submit() {
             <!-- Búsqueda de Departamentos (solo para nacional y departamental) -->
             <div v-if="canFilterByDepartment" class="relative">
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Departamentos</label>
-              <input 
-                type="text" 
-                v-model="searchDepartamento"
-                @focus="showDepartamentoDropdown = true"
-                @blur="showDepartamentoDropdown = false"
-                placeholder="Buscar departamento..."
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-              >
+              
+              <!-- Wrapper con badges y input -->
+              <div class="flex flex-wrap gap-2 p-2 bg-gray-50 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[42px]">
+                <!-- Tags seleccionados dentro del input -->
+                <span
+                  v-for="depto in selectedDepartamentos"
+                  :key="depto.id"
+                  class="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900 dark:text-blue-300"
+                >
+                  {{ depto.nombre }}
+                  <button
+                    @click="removeDepartamento(depto.id)"
+                    class="ml-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                  >
+                    <X :size="12" />
+                  </button>
+                </span>
+                
+                <!-- Input de búsqueda -->
+                <input 
+                  type="text" 
+                  v-model="searchDepartamento"
+                  @focus="showDepartamentoDropdown = true"
+                  @blur="showDepartamentoDropdown = false"
+                  placeholder="Buscar departamento..."
+                  class="flex-1 min-w-[150px] bg-transparent border-0 focus:ring-0 text-gray-900 text-sm dark:text-white p-0"
+                >
+              </div>
+              
               <!-- Dropdown de resultados -->
               <div v-if="showDepartamentoDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
                 <button
@@ -450,35 +483,40 @@ function submit() {
                   No hay resultados
                 </div>
               </div>
-              <!-- Tags seleccionados -->
-              <div v-if="selectedDepartamentos.length > 0" class="flex flex-wrap gap-2 mt-2">
-                <span
-                  v-for="depto in selectedDepartamentos"
-                  :key="depto.id"
-                  class="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900 dark:text-blue-300"
-                >
-                  {{ depto.nombre }}
-                  <button
-                    @click="removeDepartamento(depto.id)"
-                    class="ml-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                  >
-                    <X :size="14" />
-                  </button>
-                </span>
-              </div>
             </div>
 
             <!-- Búsqueda de Establecimientos (para nacional, departamental y prestador) -->
             <div v-if="canFilterByEstablishment" class="relative">
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Establecimientos</label>
-              <input 
-                type="text" 
-                v-model="searchEstablecimiento"
-                @focus="showEstablecimientoDropdown = true"
-                @blur="showEstablecimientoDropdown = false"
-                placeholder="Buscar establecimiento..."
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-              >
+              
+              <!-- Wrapper con badges y input -->
+              <div class="flex flex-wrap gap-2 p-2 bg-gray-50 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[42px]">
+                <!-- Tags seleccionados dentro del input -->
+                <span
+                  v-for="est in selectedEstablecimientos"
+                  :key="est.id_establecimiento"
+                  class="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-300"
+                >
+                  {{ est.razon_social }}
+                  <button
+                    @click="removeEstablecimiento(est.id_establecimiento)"
+                    class="ml-1 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                  >
+                    <X :size="12" />
+                  </button>
+                </span>
+                
+                <!-- Input de búsqueda -->
+                <input 
+                  type="text" 
+                  v-model="searchEstablecimiento"
+                  @focus="showEstablecimientoDropdown = true"
+                  @blur="showEstablecimientoDropdown = false"
+                  placeholder="Buscar establecimiento..."
+                  class="flex-1 min-w-[150px] bg-transparent border-0 focus:ring-0 text-gray-900 text-sm dark:text-white p-0"
+                >
+              </div>
+              
               <!-- Dropdown de resultados -->
               <div v-if="showEstablecimientoDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
                 <button
@@ -493,36 +531,41 @@ function submit() {
                   No hay resultados
                 </div>
               </div>
-              <!-- Tags seleccionados -->
-              <div v-if="selectedEstablecimientos.length > 0" class="flex flex-wrap gap-2 mt-2">
-                <span
-                  v-for="est in selectedEstablecimientos"
-                  :key="est.id_establecimiento"
-                  class="inline-flex items-center px-3 py-1 text-sm font-medium text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-300"
-                >
-                  {{ est.razon_social }}
-                  <button
-                    @click="removeEstablecimiento(est.id_establecimiento)"
-                    class="ml-2 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
-                  >
-                    <X :size="14" />
-                  </button>
-                </span>
-              </div>
             </div>
 
             <!-- Búsqueda de Sucursales (para nacional, departamental y prestador) -->
             <div v-if="canFilterBySucursal" class="relative">
               <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sucursales</label>
-              <input 
-                type="text" 
-                v-model="searchSucursal"
-                @focus="showSucursalDropdown = true"
-                @blur="showSucursalDropdown = false"
-                placeholder="Buscar sucursal..."
-                :disabled="(alcance === 'nacional' || alcance === 'departamental') && form.establecimiento_ids.length === 0"
-                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white disabled:opacity-50"
-              >
+              
+              <!-- Wrapper con badges y input -->
+              <div class="flex flex-wrap gap-2 p-2 bg-gray-50 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 min-h-[42px]" :class="{ 'opacity-50': (alcance === 'nacional' || alcance === 'departamental') && form.establecimiento_ids.length === 0 }">
+                <!-- Tags seleccionados dentro del input -->
+                <span
+                  v-for="suc in selectedSucursales"
+                  :key="suc.id_sucursal"
+                  class="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-800 bg-purple-100 rounded-full dark:bg-purple-900 dark:text-purple-300"
+                >
+                  {{ suc.nombre_sucursal }}
+                  <button
+                    @click="removeSucursal(suc.id_sucursal)"
+                    class="ml-1 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
+                  >
+                    <X :size="12" />
+                  </button>
+                </span>
+                
+                <!-- Input de búsqueda -->
+                <input 
+                  type="text" 
+                  v-model="searchSucursal"
+                  @focus="showSucursalDropdown = true"
+                  @blur="showSucursalDropdown = false"
+                  placeholder="Buscar sucursal..."
+                  :disabled="(alcance === 'nacional' || alcance === 'departamental') && form.establecimiento_ids.length === 0"
+                  class="flex-1 min-w-[150px] bg-transparent border-0 focus:ring-0 text-gray-900 text-sm dark:text-white p-0 disabled:cursor-not-allowed"
+                >
+              </div>
+              
               <!-- Dropdown de resultados -->
               <div v-if="showSucursalDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg dark:bg-gray-700 dark:border-gray-600 max-h-60 overflow-y-auto">
                 <button
@@ -537,26 +580,13 @@ function submit() {
                   No hay resultados
                 </div>
               </div>
-              <!-- Tags seleccionados -->
-              <div v-if="selectedSucursales.length > 0" class="flex flex-wrap gap-2 mt-2">
-                <span
-                  v-for="suc in selectedSucursales"
-                  :key="suc.id_sucursal"
-                  class="inline-flex items-center px-3 py-1 text-sm font-medium text-purple-800 bg-purple-100 rounded-full dark:bg-purple-900 dark:text-purple-300"
-                >
-                  {{ suc.nombre_sucursal }}
-                  <button
-                    @click="removeSucursal(suc.id_sucursal)"
-                    class="ml-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
-                  >
-                    <X :size="14" />
-                  </button>
-                </span>
-              </div>
             </div>
 
             <!-- Botones -->
             <div class="col-span-full flex items-center justify-end gap-4 pt-4">
+              <Button type="button" variant="outline" @click="limpiarFiltros">
+                Limpiar
+              </Button>
               <Button type="submit" :disabled="form.processing">Generar Estadística</Button>
             </div>
           </form>

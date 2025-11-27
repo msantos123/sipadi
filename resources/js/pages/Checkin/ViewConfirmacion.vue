@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import Swal from 'sweetalert2'
 
 const props = defineProps({
   departamentos: {
@@ -266,22 +267,47 @@ function toggleSelectAllLotes() {
 
 async function completarLotesSeleccionados() {
     if (selectedLotes.value.size === 0) {
-        alert('Seleccione al menos un lote');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atención',
+            text: 'Seleccione al menos un lote'
+        });
         return;
     }
     
-    if (confirm(`¿Está seguro de completar ${selectedLotes.value.size} lote(s)? Esta acción es final.`)) {
+    const result = await Swal.fire({
+        title: '¿Está seguro?',
+        text: `¿Desea completar ${selectedLotes.value.size} lote(s)? Esta acción es final.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, completar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
         try {
             await axios.post('/lotes/completar-multiple', {
                 lote_ids: Array.from(selectedLotes.value)
             });
-            alert('Lotes completados exitosamente');
+            
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Éxito!',
+                text: 'Lotes completados exitosamente'
+            });
+            
             selectedLotes.value.clear();
             selectAllLotes.value = false;
             fetchLotes();
         } catch (error) {
             console.error('Error al completar lotes:', error);
-            alert('Error al completar los lotes. Por favor, intente nuevamente.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al completar los lotes. Por favor, intente nuevamente.'
+            });
         }
     }
 }

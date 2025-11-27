@@ -80,7 +80,9 @@ class ReporteController extends Controller
 
         // Filtrar por rango de fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-            $query->whereBetween('fecha_hora_ingreso', [$request->fecha_inicio, $request->fecha_fin]);
+            $fechaInicio = Carbon::parse($request->fecha_inicio)->startOfDay();
+            $fechaFin = Carbon::parse($request->fecha_fin)->endOfDay();
+            $query->whereBetween('fecha_hora_ingreso', [$fechaInicio, $fechaFin]);
         }
 
         // Filtrar por múltiples departamentos

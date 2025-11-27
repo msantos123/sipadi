@@ -38,7 +38,7 @@ class SideturLoginController extends Controller
 
         if (! $sideturUser || ! Hash::check($request->password, $sideturUser->password)) {
             throw ValidationException::withMessages([
-                'email' => [trans('auth.failed')],
+                'email' => [trans('email o contraseña invalida')],
             ]);
         }
 

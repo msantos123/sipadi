@@ -33,11 +33,11 @@ class CsvUploadController extends Controller
         $establecimientoId = $user->establecimiento_id;
         $departamentoId = $user->departamento_id;
 
-        if (!$sucursalId || !$establecimientoId || !$departamentoId) {
+        if (!$establecimientoId || !$departamentoId) {
             return Inertia::render('CsvUpload/Index', [
                 'uploadResult' => [
                     'success' => false,
-                    'message' => 'El usuario no tiene una sucursal, establecimiento o departamento asignado.',
+                    'message' => 'El usuario no tiene un establecimiento o departamento asignado.',
                     'errors' => [],
                 ]
             ]);

@@ -68,7 +68,7 @@ class AuthenticatedSessionController extends Controller
         if (! $sideturUser || ! Hash::check($request->password, $sideturUser->password)) {
             Log::warning('Intento de login fallido (credenciales invÃ¡lidas en SIPADI y Sidetur) para: ' . $request->email);
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => trans('email o contraseña invalida'),
             ]);
         }
 

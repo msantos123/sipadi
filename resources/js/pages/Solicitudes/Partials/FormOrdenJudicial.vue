@@ -7,6 +7,11 @@ import { Label } from '@/components/ui/label';
 const nombre_juzgado_tribunal = ref('');
 const numero_orden_judicial = ref('');
 
+const toUpperCase = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    input.value = input.value.toUpperCase();
+};
+
 defineExpose({
     nombre_juzgado_tribunal,
     numero_orden_judicial,
@@ -22,6 +27,7 @@ defineExpose({
                 id="nombre_juzgado_tribunal"
                 v-model="nombre_juzgado_tribunal"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
         <div class="space-y-2">
@@ -30,6 +36,7 @@ defineExpose({
                 id="numero_orden_judicial"
                 v-model="numero_orden_judicial"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
     </div>

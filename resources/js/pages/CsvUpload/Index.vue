@@ -70,6 +70,7 @@ const tableHeaders = computed(() => {
           <strong>sexo:</strong> El campo sexo debera ser "M" para masculino, "F" para femenino o "O" para otros.
           <strong>estado_civil:</strong> El campo estado civil deberá ser "soltero", "casado", "divorciado", "viudo" o "union_libre".
           <strong>codigo_nacionalidad, departamento_sigla, codigo_municipio:</strong> Para consultar los códigos de nacionalidad, departamento o municipio <a href="/storage/codigos.pdf" target="_blank" rel="noopener noreferrer" class="font-bold underline text-blue-600 hover:text-blue-800">Click Aquí</a>
+          <strong>tipo_cuarto:</strong> El campo tipo_cuarto deberá ser los mismos que tiene registrado en Habitaciones.
           <strong>Nota:</strong> Para bolivianos, usa `departamento_sigla` y `codigo_municipio`. Para extranjeros, usa `ciudad_origen`.
         </AlertDescription>
       </Alert>

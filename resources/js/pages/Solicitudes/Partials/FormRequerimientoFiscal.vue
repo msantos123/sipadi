@@ -10,6 +10,11 @@ const numero_de_caso = ref('');
 const solicitante_apellidos_nombres = ref('');
 const solicitante_identificacion = ref('');
 
+const toUpperCase = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    input.value = input.value.toUpperCase();
+};
+
 defineExpose({
     fiscal_apellidos_nombres,
     fiscal_de_materia,
@@ -28,6 +33,7 @@ defineExpose({
                 id="fiscal_apellidos_nombres"
                 v-model="fiscal_apellidos_nombres"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
         <div class="space-y-2">
@@ -36,6 +42,7 @@ defineExpose({
                 id="fiscal_de_materia"
                 v-model="fiscal_de_materia"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
         <div class="space-y-2">
@@ -44,6 +51,7 @@ defineExpose({
                 id="numero_de_caso"
                 v-model="numero_de_caso"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
         <div class="space-y-2">
@@ -52,6 +60,7 @@ defineExpose({
                 id="solicitante_apellidos_nombres"
                 v-model="solicitante_apellidos_nombres"
                 type="text"
+                @input="toUpperCase"
             />
         </div>
         <div class="space-y-2">

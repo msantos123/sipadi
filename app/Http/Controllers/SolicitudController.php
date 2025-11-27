@@ -41,7 +41,7 @@ class SolicitudController extends Controller
             $request->validate([
                 'detalleType' => 'required|string|in:orden_judicial,orden_oficial,requerimiento_fiscal',
                 'pdfFile' => 'required|file|mimes:pdf',
-                'persona_buscada_nombre' => 'required|string|max:255',
+                'persona_buscada_nombre' => 'required|string|max:255|uppercase',
                 'persona_buscada_identificacion' => 'required|string|max:255',
                 'fecha_solicitud' => 'required|date',
             ]);
@@ -51,8 +51,8 @@ class SolicitudController extends Controller
                 DB::transaction(function () use ($request, &$solicitud) {
                     $solicitud = new Solicitud();
                     $solicitud->usuario_creador_id = Auth::id();
-                    $solicitud->persona_buscada_nombre = $request->input('persona_buscada_nombre');
-                    $solicitud->persona_buscada_identificacion = $request->input('persona_buscada_identificacion');
+                    $solicitud->persona_buscada_nombre = strtoupper(trim($request->input('persona_buscada_nombre')));
+                    $solicitud->persona_buscada_identificacion = trim($request->input('persona_buscada_identificacion'));
                     $solicitud->fecha_solicitud = $request->input('fecha_solicitud');
 
                     if ($request->hasFile('pdfFile')) {
@@ -93,14 +93,14 @@ class SolicitudController extends Controller
                                     switch ($request->input('detalleType')) {
                                         case 'orden_judicial':
                                             $request->validate([
-                                                'nombre_juzgado_tribunal' => 'required|string|max:255',
-                                                'numero_orden_judicial' => 'required|string|max:255',
+                                                'nombre_juzgado_tribunal' => 'required|string|max:255|uppercase',
+                                                'numero_orden_judicial' => 'required|string|max:255|uppercase',
                                             ]);
 
                                             DetallesOrdenJudicial::create([
                                                 'solicitud_id' => $solicitud->id,
-                                                'nombre_juzgado_tribunal' => $request->input('nombre_juzgado_tribunal'),
-                                                'numero_orden_judicial' => $request->input('numero_orden_judicial'),
+                                                'nombre_juzgado_tribunal' => strtoupper(trim($request->input('nombre_juzgado_tribunal'))),
+                                                'numero_orden_judicial' => strtoupper(trim($request->input('numero_orden_judicial'))),
 
                                             ]);
                                             break;
@@ -109,40 +109,44 @@ class SolicitudController extends Controller
 
                                             $request->validate([
 
-                                                'institucion' => 'required|string|max:255',
+                                                'institucion' => 'required|string|max:255|uppercase',
                                             ]);
 
                                             DetallesOrdenOficial::create([
                                                 'solicitud_id' => $solicitud->id,
-                                                'institucion' => $request->input('institucion'),
+                                                'institucion' => strtoupper(trim($request->input('institucion'))),
                                             ]);
                                             break;
 
                                         case 'requerimiento_fiscal':
                                             $request->validate([
-                                                'fiscal_apellidos_nombres' => 'required|string|max:255',
-                                                'fiscal_de_materia' => 'required|string|max:255',
-                                                'numero_de_caso' => 'required|string|max:255',
-                                                'solicitante_apellidos_nombres' => 'required|string|max:255',
+                                                'fiscal_apellidos_nombres' => 'required|string|max:255|uppercase',
+                                                'fiscal_de_materia' => 'required|string|max:255|uppercase',
+                                                'numero_de_caso' => 'required|string|max:255|uppercase',
+                                                'solicitante_apellidos_nombres' => 'required|string|max:255|uppercase',
                                                 'solicitante_identificacion' => 'required|string|max:255',
                                             ]);
 
                                             DetallesRequerimientoFiscal::create([
                                                 'solicitud_id' => $solicitud->id,
-                                                'fiscal_apellidos_nombres' => $request->input('fiscal_apellidos_nombres'),
-                                                'fiscal_de_materia' => $request->input('fiscal_de_materia'),
-                                                'numero_de_caso' => $request->input('numero_de_caso'),
-                                                'solicitante_apellidos_nombres' => $request->input('solicitante_apellidos_nombres'),
-                                                'solicitante_identificacion' => $request->input('solicitante_identificacion'),
+                                                'fiscal_apellidos_nombres' => strtoupper(trim($request->input('fiscal_apellidos_nombres'))),
+                                                'fiscal_de_materia' => strtoupper(trim($request->input('fiscal_de_materia'))),
+                                                'numero_de_caso' => strtoupper(trim($request->input('numero_de_caso'))),
+                                                'solicitante_apellidos_nombres' => strtoupper(trim($request->input('solicitante_apellidos_nombres'))),
+                                                'solicitante_identificacion' => trim($request->input('solicitante_identificacion')),
                                             ]);
                                             break;
                                     }
                 });
                 if ($solicitud) {
+                    // Decode results for frontend preview
+                    $results = $solicitud->resultado_busqueda ? json_decode($solicitud->resultado_busqueda, true) : [];
+                    
                     return response()->json([
                         'success' => true,
                         'solicitud_id' => $solicitud->id,
                         'has_results' => (bool)$solicitud->resultado_busqueda,
+                        'results' => $results,
                         'message' => $solicitud->resultado_busqueda ? 'Solicitud creada con éxito. Se encontraron estancias.' : 'Solicitud creada con éxito. No se encontraron estancias.'
                     ]);
                 }

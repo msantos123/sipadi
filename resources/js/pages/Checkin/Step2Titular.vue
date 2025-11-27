@@ -181,6 +181,9 @@ function handlePersonaSaved(persona: PersonaState) {
   showPersonaForm.value = false
   // Añade la nueva persona a los resultados de búsqueda
   searchResults.value.unshift(persona)
+  searchPerformed.value = true
+  // Seleccionar automáticamente a la persona recién creada
+  selectPersona(persona)
 }
 
 // --- UTILIDADES ---
