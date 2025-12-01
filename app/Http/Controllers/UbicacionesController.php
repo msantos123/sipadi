@@ -6,6 +6,7 @@ use App\Models\Nacionalidad;
 use App\Models\Departamento;
 use App\Models\Municipio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UbicacionesController extends Controller
@@ -28,6 +29,10 @@ class UbicacionesController extends Controller
             'gentilicio' => 'required|string|max:255|regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/',
             'codigo_nacionalidad' => 'required|string|size:3|regex:/^[A-Z]{3}$/',
         ]);
+
+        // Obtener el último ID y asignar el siguiente
+        $lastId = Nacionalidad::max('id') ?? 0;
+        $validated['id'] = $lastId + 1;
 
         Nacionalidad::create($validated);
 
@@ -66,6 +71,10 @@ class UbicacionesController extends Controller
             'sigla' => 'required|string|size:2|regex:/^[A-Z]{2}$/',
         ]);
 
+        // Obtener el último ID y asignar el siguiente
+        $lastId = Departamento::max('id') ?? 0;
+        $validated['id'] = $lastId + 1;
+
         Departamento::create($validated);
 
         return redirect()->back()->with('success', 'Departamento creado correctamente');
@@ -102,6 +111,10 @@ class UbicacionesController extends Controller
             'departamento_id' => 'required|exists:departamentos,id',
             'codigo_municipio' => 'required|string|max:10',
         ]);
+
+        // Obtener el último ID y asignar el siguiente
+        $lastId = Municipio::max('id') ?? 0;
+        $validated['id'] = $lastId + 1;
 
         Municipio::create($validated);
 

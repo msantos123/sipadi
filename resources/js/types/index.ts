@@ -57,66 +57,75 @@ export interface Estancia {
 
 // Types from index.d.ts
 export interface Sucursal {
-    id_sucursal: number;
-    nombre_sucursal: string;
-    ciudad: string;
-    direccion_sucursal: string;
+  id_sucursal: number;
+  nombre_sucursal: string;
+  ciudad: string;
+  direccion_sucursal: string;
 }
 
 export interface Establecimiento {
-    id_establecimiento: number;
-    codigo: string;
-    razon_social: string;
-    ciudad: string;
-    direccion_establecimiento: string;
-    id_departamento: number;
-    sucursales?: Sucursal | null;
+  id_establecimiento: number;
+  codigo: string;
+  razon_social: string;
+  ciudad: string;
+  direccion_establecimiento: string;
+  id_departamento: number;
+  sucursales?: Sucursal | null;
 }
 
 export interface User {
-    id: number;
-    nombres: string;
-    apellido_paterno: string;
-    apellido_materno: string | null;
-    ci: string;
-    celular: string | null;
-    email: string;
-    avatar?: string;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-    nacionalidad_id: number | null;
-    departamento_id: number | null;
-    municipio_id: number | null;
-    establecimiento_id: number | null;
-    sucursal_id: number | null;
-    establecimiento?: Establecimiento;
-    sucursal?: Sucursal;
-    permissions: Permissions;
-    departamento: Departamento;
+  id: number;
+  nombres: string;
+  apellido_paterno: string;
+  apellido_materno: string | null;
+  ci: string;
+  celular: string | null;
+  email: string;
+  avatar?: string;
+  email_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+  nacionalidad_id: number | null;
+  departamento_id: number | null;
+  municipio_id: number | null;
+  establecimiento_id: number | null;
+  sucursal_id: number | null;
+  establecimiento?: Establecimiento;
+  sucursal?: Sucursal;
+  permissions: string[];
+  departamento: Departamento;
+}
+
+export type Permissions = string[];
+
+export interface NavItem {
+  title: string;
+  href: string | null;
+  icon: any;
+  permission?: string | string[];
 }
 
 export interface Auth {
-    user: User;
+  user: User;
 }
 
 export type AppPageProps<
-    T extends Record<string, unknown> = Record<string, unknown>,
+  T extends Record<string, unknown> = Record<string, unknown>,
 > = T & {
-    name: string;
-    quote: { message: string; author: string };
-    auth: Auth;
-    sidebarOpen: boolean;
+  name: string;
+  quote: { message: string; author: string };
+  auth: Auth;
+  sidebarOpen: boolean;
 };
 
 export interface Role {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
 }
 
 export interface TipoCuarto {
-    id: number;
-    nombre: string;
-    nro_habitaciones: number;
-    nro_personas: number;
+  id: number;
+  nombre: string;
+  nro_habitaciones: number;
+  nro_personas: number;
 }

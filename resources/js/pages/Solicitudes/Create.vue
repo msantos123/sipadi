@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import axios from 'axios';
-import { router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Heading from '@/components/Heading.vue';
 import FormOrdenJudicial from '@/pages/Solicitudes/Partials/FormOrdenJudicial.vue';
@@ -11,35 +10,64 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import AlertError from '@/components/AlertError.vue';
-import Swal from 'sweetalert2'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Search, FileText } from 'lucide-vue-next';
+import axios from 'axios';
+import { format } from 'date-fns';
 
 type DetalleType = 'orden_judicial' | 'orden_oficial' | 'requerimiento_fiscal';
 
 const detalleType = ref<DetalleType>('orden_judicial');
 const pdfFile = ref<File | null>(null);
-const persona_buscada_nombre = ref('');
-const persona_buscada_identificacion = ref('');
-const fecha_solicitud = ref('');
 
 const formOrdenJudicial = ref<InstanceType<typeof FormOrdenJudicial> | null>(null);
 const formOrdenOficial = ref<InstanceType<typeof FormOrdenOficial> | null>(null);
 const formRequerimientoFiscal = ref<InstanceType<typeof FormRequerimientoFiscal> | null>(null);
 
-const solicitudId = ref<number | null>(null);
-const solicitudMessage = ref<string | null>(null);
-const errorMessage = ref<string | null>(null);
-const hasResults = ref<boolean>(false);
-const isSubmitting = ref(false);
+const searchPerformed = ref(false);
 const searchResults = ref<any[]>([]);
-const showResultsModal = ref(false);
+const searchMessage = ref('');
+const isSearching = ref(false);
+const fileError = ref<string>('');
+
+const form = useForm({
+    detalleType: 'orden_judicial' as DetalleType,
+    pdfFile: null as File | null,
+    persona_buscada_nombre: '',
+    persona_buscada_identificacion: '',
+    fecha_solicitud: '',
+    resultado_busqueda: '',
+    // Campos específicos de orden judicial
+    nombre_juzgado_tribunal: '',
+    numero_orden_judicial: '',
+    // Campos específicos de orden oficial
+    institucion: '',
+    // Campos específicos de requerimiento fiscal
+    fiscal_apellidos_nombres: '',
+    fiscal_de_materia: '',
+    numero_de_caso: '',
+    solicitante_apellidos_nombres: '',
+    solicitante_identificacion: '',
+});
+
+const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return format(date, 'dd/MM/yyyy HH:mm');
+    } catch (error) {
+        return dateString;
+    }
+};
 
 const handleFileChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
-    if (target.files) {
+    if (target.files && target.files[0]) {
         pdfFile.value = target.files[0];
+        form.pdfFile = target.files[0];
+        fileError.value = '';
     }
 };
 
@@ -48,105 +76,89 @@ const toUpperCase = (event: Event) => {
     input.value = input.value.toUpperCase();
 };
 
-const submit = async () => {
-    if (!pdfFile.value) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Atención',
-            text: 'Por favor, sube un archivo PDF.'
-        });
+const searchPerson = async () => {
+    if (!form.persona_buscada_nombre || !form.persona_buscada_identificacion) {
+        alert('Por favor, complete el nombre e identificación de la persona buscada.');
         return;
     }
 
-    isSubmitting.value = true;
-    errorMessage.value = null;
-    solicitudMessage.value = null;
+    isSearching.value = true;
+    searchPerformed.value = false;
 
-    const formData = new FormData();
-    formData.append('detalleType', detalleType.value);
-    formData.append('pdfFile', pdfFile.value);
-    formData.append('persona_buscada_nombre', persona_buscada_nombre.value.trim().toUpperCase());
-    formData.append('persona_buscada_identificacion', persona_buscada_identificacion.value.trim());
-    formData.append('fecha_solicitud', fecha_solicitud.value);
+    try {
+        const response = await axios.post('/solicitudes/search', {
+            persona_buscada_nombre: form.persona_buscada_nombre.trim().toUpperCase(),
+            persona_buscada_identificacion: form.persona_buscada_identificacion.trim(),
+        });
 
+        if (response.data.success) {
+            searchResults.value = response.data.results;
+            searchMessage.value = response.data.message;
+            searchPerformed.value = true;
+            
+            // Guardar resultados como JSON string para enviar al backend
+            form.resultado_busqueda = JSON.stringify(response.data.results);
+        }
+    } catch (error: any) {
+        console.error('Error en búsqueda:', error);
+        searchMessage.value = error.response?.data?.message || 'Error al buscar persona';
+        searchResults.value = [];
+        searchPerformed.value = true;
+        form.resultado_busqueda = '[]';
+    } finally {
+        isSearching.value = false;
+    }
+};
 
+const createSolicitud = () => {
+    
+    if (!pdfFile.value) {
+        fileError.value = 'Por favor, sube un archivo PDF.';
+        return;
+    }
+
+    if (!searchPerformed.value) {
+        alert('Por favor, realiza la búsqueda de la persona antes de crear la solicitud.');
+        return;
+    }
+
+    fileError.value = '';
+    form.detalleType = detalleType.value;
+    form.persona_buscada_nombre = form.persona_buscada_nombre.trim().toUpperCase();
+    form.persona_buscada_identificacion = form.persona_buscada_identificacion.trim();
+
+    // Asignar campos específicos según el tipo de detalle
     switch (detalleType.value) {
         case 'orden_judicial':
             if (formOrdenJudicial.value) {
-                formData.append('nombre_juzgado_tribunal', formOrdenJudicial.value.nombre_juzgado_tribunal.trim().toUpperCase());
-                formData.append('numero_orden_judicial', formOrdenJudicial.value.numero_orden_judicial.trim().toUpperCase());
+                form.nombre_juzgado_tribunal = formOrdenJudicial.value.nombre_juzgado_tribunal.trim().toUpperCase();
+                form.numero_orden_judicial = formOrdenJudicial.value.numero_orden_judicial.trim().toUpperCase();
             }
             break;
         case 'orden_oficial':
             if (formOrdenOficial.value) {
-                formData.append('institucion', formOrdenOficial.value.institucion.trim().toUpperCase());
+                form.institucion = formOrdenOficial.value.institucion.trim().toUpperCase();
             }
             break;
         case 'requerimiento_fiscal':
             if (formRequerimientoFiscal.value) {
-                formData.append('fiscal_apellidos_nombres', formRequerimientoFiscal.value.fiscal_apellidos_nombres.trim().toUpperCase());
-                formData.append('fiscal_de_materia', formRequerimientoFiscal.value.fiscal_de_materia.trim().toUpperCase());
-                formData.append('numero_de_caso', formRequerimientoFiscal.value.numero_de_caso.trim().toUpperCase());
-                formData.append('solicitante_apellidos_nombres', formRequerimientoFiscal.value.solicitante_apellidos_nombres.trim().toUpperCase());
-                formData.append('solicitante_identificacion', formRequerimientoFiscal.value.solicitante_identificacion.trim());
+                form.fiscal_apellidos_nombres = formRequerimientoFiscal.value.fiscal_apellidos_nombres.trim().toUpperCase();
+                form.fiscal_de_materia = formRequerimientoFiscal.value.fiscal_de_materia.trim().toUpperCase();
+                form.numero_de_caso = formRequerimientoFiscal.value.numero_de_caso.trim().toUpperCase();
+                form.solicitante_apellidos_nombres = formRequerimientoFiscal.value.solicitante_apellidos_nombres.trim().toUpperCase();
+                form.solicitante_identificacion = formRequerimientoFiscal.value.solicitante_identificacion.trim();
+                
             }
             break;
     }
 
-    try {
-        const response = await axios.post('/solicitudes', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
-
-        if (response.data.success) {
-            solicitudId.value = response.data.solicitud_id;
-            hasResults.value = response.data.has_results;
-            searchResults.value = response.data.results || [];
-            
-            await Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: response.data.message,
-                confirmButtonText: 'Aceptar'
-            });
-            
-            if (hasResults.value) {
-                showResultsModal.value = true;
-            }
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: response.data.message || 'Ocurrió un error desconocido.'
-            });
+    form.post('/solicitudes', {
+        forceFormData: true,
+        onSuccess: () => {
+        },
+        onError: (errors) => {
         }
-    } catch (error: any) {
-        let errorMsg = 'No se pudo conectar con el servidor.';
-        if (error.response && error.response.data && error.response.data.message) {
-            errorMsg = error.response.data.message;
-        }
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: errorMsg
-        });
-    } finally {
-        isSubmitting.value = false;
-    }
-};
-
-const download = () => {
-    if (solicitudId.value) {
-        window.open(`/solicitudes/${solicitudId.value}/download`, '_blank');
-        
-        // Cerrar modal y redirigir después de un breve delay
-        setTimeout(() => {
-            showResultsModal.value = false;
-            router.visit('/solicitudes');
-        }, 1000);
-    }
+    });
 };
 
 </script>
@@ -156,7 +168,7 @@ const download = () => {
         <div class="p-4 sm:p-6">
             <Heading title="Crear Solicitud" />
 
-            <form @submit.prevent="submit">
+            <form @submit.prevent="createSolicitud">
                 <div class="space-y-6 mt-6">
                     <div class="space-y-2">
                         <RadioGroup v-model="detalleType" default-value="orden_judicial" class="flex items-center space-x-4">
@@ -176,9 +188,9 @@ const download = () => {
                     </div>
 
                     <div class="mt-6">
-                        <FormOrdenJudicial v-if="detalleType === 'orden_judicial'" ref="formOrdenJudicial" />
-                        <FormOrdenOficial v-if="detalleType === 'orden_oficial'" ref="formOrdenOficial" />
-                        <FormRequerimientoFiscal v-if="detalleType === 'requerimiento_fiscal'" ref="formRequerimientoFiscal" />
+                        <FormOrdenJudicial v-if="detalleType === 'orden_judicial'" ref="formOrdenJudicial" :errors="form.errors" />
+                        <FormOrdenOficial v-if="detalleType === 'orden_oficial'" ref="formOrdenOficial" :errors="form.errors" />
+                        <FormRequerimientoFiscal v-if="detalleType === 'requerimiento_fiscal'" ref="formRequerimientoFiscal" :errors="form.errors" />
                     </div>
 
                     <div class="mt-6 space-y-4">
@@ -186,26 +198,38 @@ const download = () => {
                             <Label for="persona_buscada_nombre">Nombre de la Persona Buscada</Label>
                             <Input
                                 id="persona_buscada_nombre"
-                                v-model="persona_buscada_nombre"
+                                v-model="form.persona_buscada_nombre"
                                 type="text"
+                                required
                                 @input="toUpperCase"
                             />
+                            <div v-if="form.errors.persona_buscada_nombre" class="text-sm text-red-500">
+                                {{ form.errors.persona_buscada_nombre }}
+                            </div>
                         </div>
                         <div class="space-y-2">
                             <Label for="persona_buscada_identificacion">Identificación de la Persona Buscada</Label>
                             <Input
                                 id="persona_buscada_identificacion"
-                                v-model="persona_buscada_identificacion"
+                                v-model="form.persona_buscada_identificacion"
                                 type="text"
+                                required
                             />
+                            <div v-if="form.errors.persona_buscada_identificacion" class="text-sm text-red-500">
+                                {{ form.errors.persona_buscada_identificacion }}
+                            </div>
                         </div>
                         <div class="space-y-2">
                             <Label for="fecha_solicitud">Fecha de Solicitud</Label>
                             <Input
                                 id="fecha_solicitud"
-                                v-model="fecha_solicitud"
+                                v-model="form.fecha_solicitud"
                                 type="date"
+                                required
                             />
+                            <div v-if="form.errors.fecha_solicitud" class="text-sm text-red-500">
+                                {{ form.errors.fecha_solicitud }}
+                            </div>
                         </div>
                     </div>
 
@@ -216,99 +240,105 @@ const download = () => {
                                 id="pdf_file"
                                 type="file"
                                 accept=".pdf"
+                                required
                                 @change="handleFileChange"
                             />
+                            <div v-if="fileError" class="text-sm text-red-500">
+                                {{ fileError }}
+                            </div>
+                            <div v-if="form.errors.pdfFile" class="text-sm text-red-500">
+                                {{ form.errors.pdfFile }}
+                            </div>
                         </div>
                     </div>
-                     <div v-if="errorMessage" class="mt-4">
-                        <AlertError :message="errorMessage" />
-                    </div>
 
-                    <div v-if="solicitudMessage" class="mt-4 p-4 bg-green-100 text-green-800 rounded-md">
-                        {{ solicitudMessage }}
-                    </div>
-
-
-                    <div class="flex justify-end pt-4 space-x-4">
-                         <Button type="submit" :disabled="isSubmitting">
-                            {{ isSubmitting ? 'Guardando...' : 'Guardar Solicitud' }}
-                        </Button>
-                        <Button
-                            v-if="solicitudId && hasResults"
-                            type="button"
-                            @click="download"
+                    <!-- Botón de Búsqueda -->
+                    <div class="flex justify-end pt-4">
+                        <Button 
+                            type="button" 
+                            @click="searchPerson"
+                            :disabled="isSearching"
+                            variant="outline"
                         >
-                            Descargar Excel
+                            <Search class="mr-2 h-4 w-4" />
+                            {{ isSearching ? 'Buscando...' : 'Buscar Persona' }}
+                        </Button>
+                    </div>
+
+                    <!-- Resultados de Búsqueda -->
+                    <div v-if="searchPerformed" class="mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Resultados de la Búsqueda</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Alert class="mb-4">
+                                    <AlertDescription>
+                                        {{ searchMessage }}
+                                    </AlertDescription>
+                                </Alert>
+
+                                <div v-if="searchResults.length > 0" class="mt-4 border rounded-lg">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Nombre Completo</TableHead>
+                                                <TableHead>Documento</TableHead>
+                                                <TableHead>Nacionalidad</TableHead>
+                                                <TableHead>Establecimiento</TableHead>
+                                                <TableHead>Departamento</TableHead>
+                                                <TableHead>Fecha Entrada</TableHead>
+                                                <TableHead>Fecha Salida</TableHead>
+                                                <TableHead>Nro. Cuarto</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRow v-for="(result, index) in searchResults" :key="index">
+                                                <TableCell>
+                                                    {{ result.persona?.nombres }} {{ result.persona?.apellido_paterno }} {{ result.persona?.apellido_materno }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ result.persona?.tipo_documento }}: {{ result.persona?.nro_documento }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ result.persona?.nacionalidad?.pais || 'N/A' }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ result.reserva?.establecimiento?.razon_social || 'N/A' }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ result.reserva?.establecimiento?.sucursales?.[0]?.departamento?.nombre || 'N/A' }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ formatDateTime(result.reserva?.fecha_entrada) }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ formatDateTime(result.reserva?.fecha_salida) }}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {{ result.nro_cuarto || 'N/A' }}
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div v-if="form.recentlySuccessful" class="mt-4 p-4 bg-green-100 text-green-800 rounded-md">
+                        Solicitud creada correctamente
+                    </div>
+
+                    <!-- Botón de Crear Solicitud -->
+                    <div v-if="searchPerformed" class="flex justify-end pt-4 space-x-4">
+                         <Button type="submit" :disabled="form.processing">
+                            <FileText class="mr-2 h-4 w-4" />
+                            {{ form.processing ? 'Creando...' : 'Crear Solicitud' }}
                         </Button>
                     </div>
                 </div>
             </form>
         </div>
-
-        <!-- Modal de Resultados -->
-        <Dialog :open="showResultsModal" @update:open="showResultsModal = false">
-            <DialogContent class="max-w-6xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Resultados de la Búsqueda</DialogTitle>
-                    <DialogDescription>
-                        Se encontraron {{ searchResults.length }} estancia(s) para la persona buscada.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div class="mt-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre Completo</TableHead>
-                                <TableHead>Documento</TableHead>
-                                <TableHead>Nacionalidad</TableHead>
-                                <TableHead>Establecimiento</TableHead>
-                                <TableHead>Departamento</TableHead>
-                                <TableHead>Fecha Entrada</TableHead>
-                                <TableHead>Fecha Salida</TableHead>
-                                <TableHead>Nro. Cuarto</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow v-for="(result, index) in searchResults" :key="index">
-                                <TableCell>
-                                    {{ result.persona?.nombres }} {{ result.persona?.apellido_paterno }} {{ result.persona?.apellido_materno }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.persona?.tipo_documento }}: {{ result.persona?.nro_documento }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.persona?.nacionalidad?.pais || 'N/A' }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.reserva?.establecimiento?.razon_social || 'N/A' }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.reserva?.establecimiento?.sucursales?.[0]?.departamento?.nombre || 'N/A' }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.reserva?.fecha_entrada || 'N/A' }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.reserva?.fecha_salida || 'N/A' }}
-                                </TableCell>
-                                <TableCell>
-                                    {{ result.nro_cuarto || 'N/A' }}
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </div>
-
-                <DialogFooter class="mt-6">
-                    <Button variant="outline" @click="showResultsModal = false">
-                        Cerrar
-                    </Button>
-                    <Button @click="download">
-                        Descargar Excel
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     </AppLayout>
 </template>

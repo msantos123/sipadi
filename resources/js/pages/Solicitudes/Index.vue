@@ -7,12 +7,14 @@ import { format } from 'date-fns'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Link, router } from '@inertiajs/vue3'
+import { FileText, Download } from 'lucide-vue-next'
 
 interface Solicitud {
   id: number
   persona_buscada_nombre: string
   persona_buscada_identificacion: string
   fecha_solicitud: string
+  documento_adjunto_path: string | null
   usuario_creador: {
     nombres: string
   }
@@ -22,15 +24,28 @@ interface Solicitud {
   resultado_busqueda: string | null
 }
 
+interface PaginatedSolicitudes {
+  data: Solicitud[]
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+  links: Array<{
+    url: string | null
+    label: string
+    active: boolean
+  }>
+}
+
 const props = defineProps({
   solicitudes: {
-    type: Array as PropType<Solicitud[]>,
+    type: Object as PropType<PaginatedSolicitudes>,
     required: true,
   },
 })
 
 const formattedSolicitudes = computed(() => {
-  return props.solicitudes.map(s => {
+  return props.solicitudes.data.map(s => {
     let tipo = 'N/A'
     let detalles: any = {}
 
@@ -59,13 +74,32 @@ const formattedSolicitudes = computed(() => {
       fecha_solicitud: format(new Date(s.fecha_solicitud), 'dd/MM/yyyy'),
       tipo,
       detalles,
-      hasResult: s.resultado_busqueda && s.resultado_busqueda.length > 2, // >2 para '[]'
+      hasResult: s.resultado_busqueda && s.resultado_busqueda.length > 2,
+      hasPdf: !!s.documento_adjunto_path,
     }
   })
 })
 
 const downloadReport = (solicitudId: number) => {
   window.open(`/solicitudes/${solicitudId}/download`, '_blank')
+}
+
+const viewPdf = (solicitudId: number) => {
+  window.open(`/solicitudes/${solicitudId}/pdf`, '_blank')
+}
+
+const goToPage = (url: string | null) => {
+  if (!url) return
+  router.get(url, {}, {
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
+const formatLabel = (label: string) => {
+  if (label.includes('pagination.previous')) return '<<';
+  if (label.includes('pagination.next')) return '>>';
+  return label;
 }
 </script>
 
@@ -114,14 +148,26 @@ const downloadReport = (solicitudId: number) => {
 
                 <TableCell>{{ solicitud.usuario_creador.nombres }}</TableCell>
                 <TableCell class="text-right">
-                  <Button
-                    v-if="solicitud.hasResult"
-                    variant="outline"
-                    size="sm"
-                    @click="downloadReport(solicitud.id)"
-                  >
-                    Descargar
-                  </Button>
+                  <div class="flex justify-end gap-2">
+                    <Button
+                      v-if="solicitud.hasPdf"
+                      variant="outline"
+                      size="sm"
+                      @click="viewPdf(solicitud.id)"
+                    >
+                      <FileText class="mr-2 h-4 w-4" />
+                      Ver PDF
+                    </Button>
+                    <Button
+                      v-if="solicitud.hasResult"
+                      variant="outline"
+                      size="sm"
+                      @click="downloadReport(solicitud.id)"
+                    >
+                      <Download class="mr-2 h-4 w-4" />
+                      Descargar
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             </template>
@@ -135,6 +181,25 @@ const downloadReport = (solicitudId: number) => {
           </TableBody>
         </Table>
       </div>
+
+      <!-- Paginación -->
+      <div v-if="solicitudes.last_page > 1" class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-muted-foreground">
+          Mostrando {{ solicitudes.data.length }} de {{ solicitudes.total }} solicitudes
+        </div>
+        <div class="flex gap-2">
+          <Button
+            v-for="link in solicitudes.links"
+            :key="link.label"
+            :variant="link.active ? 'default' : 'outline'"
+            size="sm"
+            :disabled="!link.url"
+            @click="goToPage(link.url)"
+            v-html="formatLabel(link.label)"
+          />
+        </div>
+      </div>
     </div>
   </AppLayout>
 </template>
+

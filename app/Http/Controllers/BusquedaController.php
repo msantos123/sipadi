@@ -186,5 +186,157 @@ class BusquedaController extends Controller
             'filtros' => $request->only(['nacionalidad_id', 'nombre', 'documento', 'edad_min', 'edad_max', 'rango_edad', 'fecha_desde', 'fecha_hasta']),
         ]);
     }
+
+    /**
+     * Exporta los resultados de búsqueda a Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = Estancia::query()
+            ->join('personas', 'estancias.persona_id', '=', 'personas.id')
+            ->join('reservas', 'estancias.reserva_id', '=', 'reservas.id')
+            ->leftJoin('nacionalidades', 'personas.nacionalidad_id', '=', 'nacionalidades.id')
+            ->leftJoin('departamentos', 'personas.departamento_id', '=', 'departamentos.id');
+
+        // Aplicar los mismos filtros que en search()
+        $query->when($request->nacionalidad_id, function ($q) use ($request) {
+            $q->where('personas.nacionalidad_id', $request->nacionalidad_id);
+        });
+
+        $query->when($request->nombre, function ($q) use ($request) {
+            $nombre = $request->nombre;
+            $q->where(function ($subQuery) use ($nombre) {
+                $subQuery->where('personas.nombres', 'like', "%{$nombre}%")
+                    ->orWhere('personas.apellido_paterno', 'like', "%{$nombre}%")
+                    ->orWhere('personas.apellido_materno', 'like', "%{$nombre}%")
+                    ->orWhereRaw("CONCAT(personas.nombres, ' ', personas.apellido_paterno, ' ', personas.apellido_materno) like ?", ["%{$nombre}%"]);
+            });
+        });
+
+        $query->when($request->documento, function ($q) use ($request) {
+            $q->where('personas.nro_documento', 'like', "%{$request->documento}%");
+        });
+
+        if ($request->edad_min || $request->edad_max) {
+            $query->whereNotNull('personas.fecha_nacimiento');
+            
+            if ($request->edad_min) {
+                $fechaMax = now()->subYears($request->edad_min)->format('Y-m-d');
+                $query->where('personas.fecha_nacimiento', '<=', $fechaMax);
+            }
+            
+            if ($request->edad_max) {
+                $fechaMin = now()->subYears($request->edad_max + 1)->addDay()->format('Y-m-d');
+                $query->where('personas.fecha_nacimiento', '>=', $fechaMin);
+            }
+        }
+
+        $query->when($request->fecha_desde, function ($q) use ($request) {
+            $q->where('estancias.fecha_hora_ingreso', '>=', $request->fecha_desde);
+        });
+
+        $query->when($request->fecha_hasta, function ($q) use ($request) {
+            $q->where('estancias.fecha_hora_ingreso', '<=', $request->fecha_hasta . ' 23:59:59');
+        });
+
+        // Obtener todos los resultados (sin paginación)
+        $estancias = $query->select([
+            'estancias.id',
+            'personas.nombres',
+            'personas.apellido_paterno',
+            'personas.apellido_materno',
+            'personas.tipo_documento',
+            'personas.nro_documento',
+            'personas.complemento',
+            'personas.nacionalidad_id',
+            'nacionalidades.gentilicio as nacionalidad',
+            'personas.departamento_id',
+            'personas.ciudad_origen',
+            'personas.sexo',
+            'personas.fecha_nacimiento',
+            'estancias.fecha_hora_ingreso',
+            'estancias.fecha_hora_salida_efectiva',
+            'reservas.establecimiento_id',
+            'reservas.sucursal_id',
+        ])
+        ->orderBy('estancias.fecha_hora_ingreso', 'desc')
+        ->get();
+
+        // Preparar datos para Excel
+        $data = [];
+        foreach ($estancias as $estancia) {
+            // Obtener información del establecimiento
+            $establecimiento = null;
+            $departamentoEstablecimiento = null;
+            
+            if ($estancia->establecimiento_id) {
+                $establecimiento = DB::connection('mysql_sidetur')
+                    ->table('establecimiento')
+                    ->where('id_establecimiento', $estancia->establecimiento_id)
+                    ->first(['razon_social', 'id_departamento', 'municipio']);
+                
+                if ($establecimiento) {
+                    if ($establecimiento->id_departamento) {
+                        $departamentoEstablecimiento = Departamento::find($establecimiento->id_departamento)?->nombre;
+                    }
+                    
+                    if (!$departamentoEstablecimiento && $estancia->sucursal_id) {
+                        $sucursal = DB::connection('mysql_sidetur')
+                            ->table('sucursal')
+                            ->where('id_sucursal', $estancia->sucursal_id)
+                            ->first(['id_departamento', 'ciudad']);
+                        
+                        if ($sucursal) {
+                            if ($sucursal->id_departamento) {
+                                $departamentoEstablecimiento = Departamento::find($sucursal->id_departamento)?->nombre;
+                            } elseif ($sucursal->ciudad) {
+                                $departamentoEstablecimiento = $sucursal->ciudad;
+                            }
+                        }
+                    }
+                    
+                    if (!$departamentoEstablecimiento && $establecimiento->municipio) {
+                        $departamentoEstablecimiento = $establecimiento->municipio;
+                    }
+                }
+            }
+
+            // Calcular edad
+            $edad = null;
+            if ($estancia->fecha_nacimiento) {
+                $edad = \Carbon\Carbon::parse($estancia->fecha_nacimiento)->age;
+            }
+
+            // Determinar procedencia
+            $procedencia = 'N/A';
+            if ($estancia->nacionalidad_id == 24) {
+                if ($estancia->departamento_id) {
+                    $departamento = Departamento::find($estancia->departamento_id);
+                    $procedencia = $departamento?->nombre ?? 'N/A';
+                }
+            } else {
+                $procedencia = $estancia->ciudad_origen ?? 'N/A';
+            }
+
+            $data[] = [
+                'Nombre y Apellido' => trim("{$estancia->nombres} {$estancia->apellido_paterno} {$estancia->apellido_materno}"),
+                'Documento' => trim("{$estancia->tipo_documento} {$estancia->nro_documento}" . ($estancia->complemento ? "-{$estancia->complemento}" : "")),
+                'Nacionalidad' => $estancia->nacionalidad ?? 'N/A',
+                'Procedencia' => $procedencia,
+                'Sexo' => $estancia->sexo ?? 'N/A',
+                'Edad' => $edad ?? 'N/A',
+                'Fecha Ingreso' => $estancia->fecha_hora_ingreso ? \Carbon\Carbon::parse($estancia->fecha_hora_ingreso)->format('d/m/Y H:i') : 'N/A',
+                'Fecha Salida' => $estancia->fecha_hora_salida_efectiva ? \Carbon\Carbon::parse($estancia->fecha_hora_salida_efectiva)->format('d/m/Y H:i') : 'N/A',
+                'Establecimiento' => $establecimiento?->razon_social ?? 'N/A',
+                'Departamento' => $departamentoEstablecimiento ?? 'N/A',
+            ];
+        }
+
+        // Generar Excel
+        $filename = 'busqueda_estancias_' . now()->format('Y-m-d_His') . '.xlsx';
+        
+        return (new \Rap2hpoutre\FastExcel\FastExcel($data))
+            ->download($filename);
+    }
 }
 

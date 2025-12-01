@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { MapPinned, UserSearch, BookOpen, ChartNoAxesCombined, BookDown, Upload, Eye, Folder, LayoutGrid, User, UserCheck, BedDouble, BookOpenCheck   } from 'lucide-vue-next';
+import { MapPinned, UserSearch, ChartNoAxesCombined, BookDown, Upload, Eye, LayoutGrid, User, UserCheck, BedDouble, BookOpenCheck   } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 // --- INICIO DE LA LÓGICA DE PERMISOS ---
@@ -44,7 +44,7 @@ const navSections: NavSection[] = [
         items: [
             {
                 title: 'Dashboard',
-                href: 'dashboard',
+                href: '/dashboard',
                 icon: LayoutGrid,
             },
         ]
@@ -66,7 +66,7 @@ const navSections: NavSection[] = [
             },
             {
                 title: 'Ubicaciones',
-                href: 'ubicaciones',
+                href: '/ubicaciones',
                 icon: MapPinned,
                 permission: 'gestionar-ubicaciones',
             },

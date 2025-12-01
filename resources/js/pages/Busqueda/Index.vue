@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, X } from 'lucide-vue-next';
+import { Search, X, Download } from 'lucide-vue-next';
 
 interface Nacionalidad {
     id: number;
@@ -104,18 +104,24 @@ const handleBlur = () => {
     }, 200);
 };
 
-// Validación para nombres (solo letras y espacios)
+// Validación para nombres (solo letras mayúsculas y espacios, sin números ni caracteres especiales)
 const validateNombre = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    input.value = input.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-    form.nombre = input.value;
+    // Remover números y caracteres especiales, mantener solo letras y espacios
+    let value = input.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+    // Convertir a mayúsculas
+    value = value.toUpperCase();
+    input.value = value;
+    form.nombre = value;
 };
 
-// Validación para documento (solo letras y números)
+// Validación para documento (solo números y guion, sin letras ni caracteres especiales)
 const validateDocumento = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    input.value = input.value.replace(/[^a-zA-Z0-9]/g, '');
-    form.documento = input.value;
+    // Permitir solo números y guion
+    const value = input.value.replace(/[^0-9-]/g, '');
+    input.value = value;
+    form.documento = value;
 };
 
 const buscar = () => {
@@ -169,6 +175,41 @@ const goToPage = (url: string | null) => {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+const downloadExcel = () => {
+    // Convertir rango de edad a edad_min y edad_max
+    let edad_min = null;
+    let edad_max = null;
+    
+    if (form.rango_edad) {
+        const rangos: Record<string, { min: number; max: number | null }> = {
+            '18-25': { min: 18, max: 25 },
+            '26-35': { min: 26, max: 35 },
+            '36-45': { min: 36, max: 45 },
+            '46-60': { min: 46, max: 60 },
+            '60+': { min: 60, max: null },
+        };
+        
+        const rango = rangos[form.rango_edad];
+        if (rango) {
+            edad_min = rango.min;
+            edad_max = rango.max;
+        }
+    }
+
+    const params = new URLSearchParams();
+    
+    if (form.nacionalidad_id) params.append('nacionalidad_id', form.nacionalidad_id);
+    if (form.nombre) params.append('nombre', form.nombre);
+    if (form.documento) params.append('documento', form.documento);
+    if (edad_min !== null) params.append('edad_min', edad_min.toString());
+    if (edad_max !== null) params.append('edad_max', edad_max.toString());
+    if (form.rango_edad) params.append('rango_edad', form.rango_edad);
+    if (form.fecha_desde) params.append('fecha_desde', form.fecha_desde);
+    if (form.fecha_hasta) params.append('fecha_hasta', form.fecha_hasta);
+    
+    window.location.href = `/busqueda/export-excel?${params.toString()}`;
 };
 </script>
 
@@ -238,7 +279,7 @@ const goToPage = (url: string | null) => {
 
                         <!-- CI/Pasaporte con validación -->
                         <div class="space-y-2">
-                            <Label for="documento">CI/Pasaporte</Label>
+                            <Label for="documento">Carnet de Identidad/Pasaporte</Label>
                             <Input
                                 id="documento"
                                 v-model="form.documento"
@@ -310,12 +351,23 @@ const goToPage = (url: string | null) => {
             <!-- Resultados -->
             <Card v-if="resultados">
                 <CardHeader>
-                    <CardTitle>
-                        Resultados de Búsqueda
-                        <span class="text-sm font-normal text-muted-foreground ml-2">
-                            ({{ resultados.total }} registro{{ resultados.total !== 1 ? 's' : '' }} encontrado{{ resultados.total !== 1 ? 's' : '' }})
-                        </span>
-                    </CardTitle>
+                    <div class="flex items-center justify-between">
+                        <CardTitle>
+                            Resultados de Búsqueda
+                            <span class="text-sm font-normal text-muted-foreground ml-2">
+                                ({{ resultados.total }} registro{{ resultados.total !== 1 ? 's' : '' }} encontrado{{ resultados.total !== 1 ? 's' : '' }})
+                            </span>
+                        </CardTitle>
+                        <Button 
+                            v-if="resultados.data.length > 0"
+                            @click="downloadExcel"
+                            variant="outline"
+                            size="sm"
+                        >
+                            <Download class="mr-2 h-4 w-4" />
+                            Descargar Excel
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div v-if="resultados.data.length > 0">

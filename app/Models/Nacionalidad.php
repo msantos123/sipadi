@@ -12,6 +12,7 @@ class Nacionalidad extends Model
 
     protected $table = 'nacionalidades';
     protected $fillable = [
+        'id',
         'pais',
         'gentilicio',
         'codigo_nacionalidad',

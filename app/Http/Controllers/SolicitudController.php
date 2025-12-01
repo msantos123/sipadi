@@ -23,7 +23,9 @@ class SolicitudController extends Controller
             'detallesOrdenOficial',
             'detallesRequerimientoFiscal',
             'usuarioCreador'
-        ])->get();
+        ])
+        ->orderBy('created_at', 'desc')
+        ->paginate(10);
 
         return Inertia::render('Solicitudes/Index', [
             'solicitudes' => $solicitudes,
@@ -35,6 +37,60 @@ class SolicitudController extends Controller
         return Inertia::render('Solicitudes/Create');
     }
 
+    public function search(Request $request)
+    {
+        $request->validate([
+            'persona_buscada_nombre' => 'required|string|max:255',
+            'persona_buscada_identificacion' => 'required|string|max:255',
+        ]);
+
+        try {
+            $persona = \App\Models\Persona::where('nombres', 'like', '%' . $request->input('persona_buscada_nombre') . '%')
+                ->orWhere('nro_documento', $request->input('persona_buscada_identificacion'))
+                ->first();
+
+            $results = [];
+            if ($persona) {
+                $estancias = \App\Models\Estancia::with([
+                    'reserva.establecimiento.sucursales',
+                    'persona.nacionalidad',
+                    'lote',
+                    'tipoCuarto'
+                ])->where('persona_id', $persona->id)->get();
+
+                // Manually load Departamento to avoid cross-database relationship issue
+                $departamentoIds = $estancias->pluck('reserva.establecimiento.sucursales.*.id_departamento')->flatten()->unique()->filter();
+                $departamentos = \App\Models\Departamento::whereIn('id', $departamentoIds)->get()->keyBy('id');
+
+                $estancias->each(function ($estancia) use ($departamentos) {
+                    if ($estancia->reserva && $estancia->reserva->establecimiento) {
+                        $estancia->reserva->establecimiento->sucursales->each(function ($sucursal) use ($departamentos) {
+                            if ($sucursal->id_departamento && isset($departamentos[$sucursal->id_departamento])) {
+                                $sucursal->setRelation('departamento', $departamentos[$sucursal->id_departamento]);
+                            }
+                        });
+                    }
+                });
+
+                $results = $estancias->toArray();
+            }
+
+            return response()->json([
+                'success' => true,
+                'found' => !empty($results),
+                'results' => $results,
+                'message' => empty($results) ? 'No se encontraron estancias para esta persona.' : 'Se encontraron ' . count($results) . ' estancia(s).'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en búsqueda de persona: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar persona: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
         public function store(Request $request)
 
         {
@@ -44,9 +100,18 @@ class SolicitudController extends Controller
                 'persona_buscada_nombre' => 'required|string|max:255|uppercase',
                 'persona_buscada_identificacion' => 'required|string|max:255',
                 'fecha_solicitud' => 'required|date',
+                'resultado_busqueda' => 'nullable|string', // JSON string de resultados
+            ], [], [
+                'detalleType' => 'tipo de detalle',
+                'pdfFile' => 'archivo PDF',
+                'persona_buscada_nombre' => 'nombre de la persona buscada',
+                'persona_buscada_identificacion' => 'identificación de la persona buscada',
+                'fecha_solicitud' => 'fecha de solicitud',
             ]);
 
             try {
+                
+                
                 $solicitud = null;
                 DB::transaction(function () use ($request, &$solicitud) {
                     $solicitud = new Solicitud();
@@ -59,74 +124,66 @@ class SolicitudController extends Controller
                         $path = $request->file('pdfFile')->store('solicitudes_pdf', 'public');
                         $solicitud->documento_adjunto_path = $path;
                     }
-                    $persona = \App\Models\Persona::where('nombres', 'like', '%' . $request->input('persona_buscada_nombre') . '%')
-                        ->orWhere('nro_documento', $request->input('persona_buscada_identificacion'))
-                        ->first();
-
-                    if ($persona) {
-                        $estancias = \App\Models\Estancia::with([
-                            'reserva.establecimiento.sucursales', // Load up to sucursales
-                            'persona.nacionalidad',
-                            'lote',
-                            'tipoCuarto'
-                        ])->where('persona_id', $persona->id)->get();
-                        //dd($estancias->toArray());
-                        // Manually load Departamento to avoid cross-database relationship issue
-                        $departamentoIds = $estancias->pluck('reserva.establecimiento.sucursales.*.id_departamento')->flatten()->unique()->filter();
-                        $departamentos = \App\Models\Departamento::whereIn('id', $departamentoIds)->get()->keyBy('id');
-
-                        $estancias->each(function ($estancia) use ($departamentos) {
-                            if ($estancia->reserva && $estancia->reserva->establecimiento) {
-                                $estancia->reserva->establecimiento->sucursales->each(function ($sucursal) use ($departamentos) {
-                                    if ($sucursal->id_departamento && isset($departamentos[$sucursal->id_departamento])) {
-                                        $sucursal->setRelation('departamento', $departamentos[$sucursal->id_departamento]);
-                                    }
-                                });
-                            }
-                        });
-
-                        $solicitud->resultado_busqueda = $estancias->toJson();
+                    
+                    // Usar los resultados de búsqueda si se proporcionan
+                    if ($request->has('resultado_busqueda')) {
+                        $solicitud->resultado_busqueda = $request->input('resultado_busqueda');
                     }
 
                     $solicitud->save();
+                    
 
                                     switch ($request->input('detalleType')) {
                                         case 'orden_judicial':
+                                            
                                             $request->validate([
                                                 'nombre_juzgado_tribunal' => 'required|string|max:255|uppercase',
                                                 'numero_orden_judicial' => 'required|string|max:255|uppercase',
+                                            ], [], [
+                                                'nombre_juzgado_tribunal' => 'nombre del juzgado o tribunal',
+                                                'numero_orden_judicial' => 'número de orden judicial',
                                             ]);
-
                                             DetallesOrdenJudicial::create([
                                                 'solicitud_id' => $solicitud->id,
                                                 'nombre_juzgado_tribunal' => strtoupper(trim($request->input('nombre_juzgado_tribunal'))),
                                                 'numero_orden_judicial' => strtoupper(trim($request->input('numero_orden_judicial'))),
 
                                             ]);
+                                            
                                             break;
 
                                         case 'orden_oficial':
-
+                                            
                                             $request->validate([
 
                                                 'institucion' => 'required|string|max:255|uppercase',
+                                            ], [], [
+                                                'institucion' => 'institución',
                                             ]);
-
                                             DetallesOrdenOficial::create([
                                                 'solicitud_id' => $solicitud->id,
                                                 'institucion' => strtoupper(trim($request->input('institucion'))),
                                             ]);
+                                            
                                             break;
 
                                         case 'requerimiento_fiscal':
+                                            
+                                            
                                             $request->validate([
                                                 'fiscal_apellidos_nombres' => 'required|string|max:255|uppercase',
                                                 'fiscal_de_materia' => 'required|string|max:255|uppercase',
                                                 'numero_de_caso' => 'required|string|max:255|uppercase',
                                                 'solicitante_apellidos_nombres' => 'required|string|max:255|uppercase',
                                                 'solicitante_identificacion' => 'required|string|max:255',
+                                            ], [], [
+                                                'fiscal_apellidos_nombres' => 'nombres y apellidos del fiscal',
+                                                'fiscal_de_materia' => 'materia del fiscal',
+                                                'numero_de_caso' => 'número de caso',
+                                                'solicitante_apellidos_nombres' => 'nombres y apellidos del solicitante',
+                                                'solicitante_identificacion' => 'identificación del solicitante',
                                             ]);
-
+                                            
                                             DetallesRequerimientoFiscal::create([
                                                 'solicitud_id' => $solicitud->id,
                                                 'fiscal_apellidos_nombres' => strtoupper(trim($request->input('fiscal_apellidos_nombres'))),
@@ -135,35 +192,46 @@ class SolicitudController extends Controller
                                                 'solicitante_apellidos_nombres' => strtoupper(trim($request->input('solicitante_apellidos_nombres'))),
                                                 'solicitante_identificacion' => trim($request->input('solicitante_identificacion')),
                                             ]);
+                                            
                                             break;
                                     }
                 });
+                
                 if ($solicitud) {
-                    // Decode results for frontend preview
-                    $results = $solicitud->resultado_busqueda ? json_decode($solicitud->resultado_busqueda, true) : [];
                     
-                    return response()->json([
-                        'success' => true,
-                        'solicitud_id' => $solicitud->id,
-                        'has_results' => (bool)$solicitud->resultado_busqueda,
-                        'results' => $results,
-                        'message' => $solicitud->resultado_busqueda ? 'Solicitud creada con éxito. Se encontraron estancias.' : 'Solicitud creada con éxito. No se encontraron estancias.'
+                    return redirect()->route('solicitudes.index')->with([
+                        'success' => $solicitud->resultado_busqueda ? 'Solicitud creada con éxito. Se encontraron estancias.' : 'Solicitud creada con éxito. No se encontraron estancias.'
                     ]);
                 }
 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo crear la solicitud.'
-                ], 400);
+                Log::error('❌ Solicitud es null después de la transacción');
+                return redirect()->back()->withErrors([
+                    'general' => 'No se pudo crear la solicitud.'
+                ]);
 
             } catch (\Exception $e) {
-                Log::error('Error al crear la solicitud: ' . $e->getMessage());
-                 return response()->json([
-                    'success' => false,
-                    'message' => 'Error al crear la solicitud: ' . $e->getMessage()
-                ], 500);
+                Log::error('❌ Error al crear la solicitud: ' . $e->getMessage());
+                Log::error('Stack trace: ' . $e->getTraceAsString());
+                return redirect()->back()->withErrors([
+                    'general' => 'Error al crear la solicitud: ' . $e->getMessage()
+                ]);
             }
         }
+
+    public function viewPdf(Solicitud $solicitud)
+    {
+        if (!$solicitud->documento_adjunto_path) {
+            return redirect()->back()->with('error', 'No hay documento PDF adjunto.');
+        }
+
+        $path = storage_path('app/public/' . $solicitud->documento_adjunto_path);
+        
+        if (!file_exists($path)) {
+            return redirect()->back()->with('error', 'El archivo PDF no existe.');
+        }
+
+        return response()->file($path);
+    }
 
     public function download(Solicitud $solicitud)
     {

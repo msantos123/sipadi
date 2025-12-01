@@ -11,6 +11,7 @@ class Departamento extends Model
     use HasFactory;
 
     protected $fillable = [
+        'id',
         'nombre',
         'sigla',
     ];

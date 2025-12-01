@@ -69,14 +69,41 @@ const agregarTipo = () => {
         : nuevoTipo.value.tipo;
 
     if (!nombre || nombre.trim() === '') {
-        alert('Por favor, ingrese un nombre para el tipo de cuarto');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campo requerido',
+            text: 'Por favor, ingrese un nombre para el tipo de cuarto',
+        });
+        return;
+    }
+    
+    // Validar que los números sean mayores a 0
+    if (nuevoTipo.value.nro_habitaciones < 1) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Valor inválido',
+            text: 'El número de habitaciones debe ser mayor a 0',
+        });
+        return;
+    }
+    
+    if (nuevoTipo.value.nro_personas < 1) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Valor inválido',
+            text: 'La capacidad de personas debe ser mayor a 0',
+        });
         return;
     }
 
     // Verificar si ya existe
     const existe = form.cuartos.find(c => c.nombre.toUpperCase() === nombre.toUpperCase());
     if (existe) {
-        alert('Este tipo de cuarto ya existe');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Tipo duplicado',
+            text: 'Este tipo de cuarto ya existe',
+        });
         return;
     }
 
@@ -93,6 +120,40 @@ const agregarTipo = () => {
         nro_habitaciones: 0,
         nro_personas: 0,
     };
+};
+
+// Validación para números positivos (solo números enteros mayores a 0)
+const validatePositiveNumber = (event: Event, field: 'nro_habitaciones' | 'nro_personas') => {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/[^0-9]/g, ''); // Solo números
+    
+    // Convertir a número
+    let numValue = parseInt(value) || 0;
+    
+    // Asegurar que sea mayor a 0
+    if (numValue < 1) {
+        numValue = 0;
+    }
+    
+    nuevoTipo.value[field] = numValue;
+    input.value = numValue.toString();
+};
+
+// Validación para números positivos en cuartos existentes
+const validateExistingNumber = (event: Event, index: number, field: 'nro_habitaciones' | 'nro_personas') => {
+    const input = event.target as HTMLInputElement;
+    let value = input.value.replace(/[^0-9]/g, ''); // Solo números
+    
+    // Convertir a número
+    let numValue = parseInt(value) || 0;
+    
+    // Asegurar que sea mayor a 0
+    if (numValue < 1) {
+        numValue = 0;
+    }
+    
+    form.cuartos[index][field] = numValue;
+    input.value = numValue.toString();
 };
 
 const eliminarTipo = (index: number) => {
@@ -191,7 +252,9 @@ const submit = () => {
                                 id="nro_habitaciones" 
                                 v-model.number="nuevoTipo.nro_habitaciones" 
                                 type="number" 
-                                min="0" 
+                                min="1" 
+                                step="1"
+                                @input="validatePositiveNumber($event, 'nro_habitaciones')"
                                 class="w-full mt-1" 
                             />
                         </div>
@@ -203,7 +266,9 @@ const submit = () => {
                                 id="nro_personas" 
                                 v-model.number="nuevoTipo.nro_personas" 
                                 type="number" 
-                                min="0" 
+                                min="1" 
+                                step="1"
+                                @input="validatePositiveNumber($event, 'nro_personas')"
                                 class="w-full mt-1" 
                             />
                         </div>
@@ -249,7 +314,9 @@ const submit = () => {
                                             :id="`nro_habitaciones_${index}`" 
                                             v-model.number="cuarto.nro_habitaciones" 
                                             type="number" 
-                                            min="0" 
+                                            min="1" 
+                                            step="1"
+                                            @input="validateExistingNumber($event, index, 'nro_habitaciones')"
                                             class="w-full mt-1" 
                                         />
                                         <InputError class="mt-2" :message="form.errors[`cuartos.${index}.nro_habitaciones`]" />
@@ -262,7 +329,9 @@ const submit = () => {
                                             :id="`nro_personas_${index}`" 
                                             v-model.number="cuarto.nro_personas" 
                                             type="number" 
-                                            min="0" 
+                                            min="1" 
+                                            step="1"
+                                            @input="validateExistingNumber($event, index, 'nro_personas')"
                                             class="w-full mt-1" 
                                         />
                                         <InputError class="mt-2" :message="form.errors[`cuartos.${index}.nro_personas`]" />

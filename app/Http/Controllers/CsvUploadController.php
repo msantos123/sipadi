@@ -49,14 +49,76 @@ class CsvUploadController extends Controller
             $reader = \League\Csv\Reader::createFromPath($path, 'r');
             $reader->setHeaderOffset(0);
             $reader->setDelimiter(';');
+            
+            // Agregar soporte para diferentes codificaciones
+            // Esto convierte automáticamente el archivo a UTF-8 si está en otra codificación
+            if (!\League\Csv\ByteSequence::BOM_UTF8 === $reader->getInputBOM()) {
+                $reader->addStreamFilter('convert.iconv.ISO-8859-1/UTF-8');
+            }
 
             $records = $reader->getRecords();
             $errors = [];
             $processedRows = 0;
             $processedData = [];
             $existingPersons = [];
+            
+            // PASO 1: Validar TODAS las filas primero
+            $validatedRecords = [];
+            foreach ($records as $key => $record) {
+                $rowNumber = $key + 2;
+                $validator = \Illuminate\Support\Facades\Validator::make($record, [
+                    'fecha_ingreso' => 'required|date_format:Y-m-d H:i:s,Y-m-d',
+                    'fecha_salida' => 'required|date_format:Y-m-d H:i:s,Y-m-d|after_or_equal:fecha_ingreso',
+                    'apellido_paterno' => 'required|string|max:100',
+                    'apellido_materno' => 'nullable|string|max:100',
+                    'nombres' => 'required|string|max:100',
+                    'tipo_documento' => 'required|string|in:CI,PASAPORTE',
+                    'identificacion' => 'required|string|max:50',
+                    'complemento' => 'nullable|string|max:10',
+                    'fecha_nacimiento' => 'required|date_format:Y-m-d,d/m/Y',
+                    'sexo' => 'required|string|in:M,F,O',
+                    'estado_civil' => 'required|string|max:50',
+                    'ocupacion' => 'nullable|string|max:100',
+                    'codigo_nacionalidad' => 'required|string|exists:nacionalidades,codigo_nacionalidad',
+                    'departamento_sigla' => 'nullable|required_if:codigo_nacionalidad,BOL|exists:departamentos,sigla',
+                    'codigo_municipio' => 'nullable|required_if:codigo_nacionalidad,BOL|exists:municipios,codigo_municipio',
+                    'ciudad_origen' => 'nullable|required_unless:codigo_nacionalidad,BOL|string|max:100',
+                    'nro_cuarto' => 'required|string|max:50',
+                    'tipo_cuarto' => 'required|string|exists:tipo_cuartos,nombre',
+                ]);
 
-            DB::transaction(function () use ($records, $user, $establecimientoId, $sucursalId, $departamentoId, &$errors, &$processedRows, &$processedData, &$existingPersons) {
+                if ($validator->fails()) {
+                    foreach ($validator->errors()->all() as $error) {
+                        $errors[] = ['row' => $rowNumber, 'message' => $error];
+                    }
+                } else {
+                    $validatedRecords[] = [
+                        'row_number' => $rowNumber,
+                        'data' => $validator->validated(),
+                        'original' => $record,
+                    ];
+                }
+            }
+            
+            // Si hay errores, NO insertar nada y retornar los errores
+            if (count($errors) > 0) {
+                $csvFormatMessage = "El archivo CSV debe tener las siguientes columnas separadas por punto y coma (;): fecha_ingreso, fecha_salida, apellido_paterno, apellido_materno, nombres, tipo_documento, identificacion, complemento, fecha_nacimiento, sexo, estado_civil, ocupacion, codigo_nacionalidad, departamento_sigla, codigo_municipio, ciudad_origen, nro_cuarto, tipo_cuarto. Las fechas deben estar en formato AAAA-MM-DD.";
+                
+                return Inertia::render('CsvUpload/Index', [
+                    'uploadResult' => [
+                        'success' => false,
+                        'message' => 'El archivo contiene errores. No se procesó ningún registro. Por favor, corrija los errores y vuelva a intentar.',
+                        'processed_rows' => 0,
+                        'errors' => $errors,
+                        'existing_persons' => [],
+                        'data' => [],
+                    ],
+                    'csvFormatMessage' => $csvFormatMessage
+                ]);
+            }
+
+            // PASO 2: Si no hay errores, procesar TODOS los registros
+            DB::transaction(function () use ($validatedRecords, $user, $establecimientoId, $sucursalId, $departamentoId, &$processedRows, &$processedData, &$existingPersons) {
                 $lote = \App\Models\Lote::firstOrCreate(
                     [
                         'establecimiento_id' => $establecimientoId,
@@ -70,39 +132,10 @@ class CsvUploadController extends Controller
                     ]
                 );
 
-                foreach ($records as $key => $record) {
-                    $rowNumber = $key + 2; // Se suma 2 para compensar el encabezado y el índice base 0
-                    $validator = \Illuminate\Support\Facades\Validator::make($record, [
-                        'fecha_ingreso' => 'required|date_format:Y-m-d H:i:s,Y-m-d',
-                        'fecha_salida' => 'required|date_format:Y-m-d H:i:s,Y-m-d|after_or_equal:fecha_ingreso',
-                        'apellido_paterno' => 'required|string|max:100',
-                        'apellido_materno' => 'nullable|string|max:100',
-                        'nombres' => 'required|string|max:100',
-                        'tipo_documento' => 'required|string|in:CI,PASAPORTE',
-                        'identificacion' => 'required|string|max:50', // nro_documento
-                        'complemento' => 'nullable|string|max:10',
-                        'fecha_nacimiento' => 'required|date_format:Y-m-d,d/m/Y',
-                        'sexo' => 'required|string|in:M,F,O',
-                        'estado_civil' => 'required|string|max:50',
-                        'ocupacion' => 'nullable|string|max:100',
-                        'codigo_nacionalidad' => 'required|string|exists:nacionalidades,codigo_nacionalidad',
-                        // Campos condicionales para bolivianos
-                        'departamento_sigla' => 'nullable|required_if:codigo_nacionalidad,BOL|exists:departamentos,sigla',
-                        'codigo_municipio' => 'nullable|required_if:codigo_nacionalidad,BOL|exists:municipios,codigo_municipio',
-                        // Campo condicional para extranjeros
-                        'ciudad_origen' => 'nullable|required_unless:codigo_nacionalidad,BOL|string|max:100',
-                        'nro_cuarto' => 'required|string|max:50',
-                        'tipo_cuarto' => 'required|string|exists:tipo_cuartos,nombre',
-                    ]);
-
-                    if ($validator->fails()) {
-                        foreach ($validator->errors()->all() as $error) {
-                            $errors[] = ['row' => $rowNumber, 'message' => $error];
-                        }
-                        continue;
-                    }
-
-                    $validatedData = $validator->validated();
+                foreach ($validatedRecords as $validatedRecord) {
+                    $rowNumber = $validatedRecord['row_number'];
+                    $validatedData = $validatedRecord['data'];
+                    $record = $validatedRecord['original'];
 
                     // Buscar persona existente por nro_documento y complemento
                     $persona = \App\Models\Persona::where('nro_documento', $validatedData['identificacion'])
@@ -136,11 +169,8 @@ class CsvUploadController extends Controller
                     }
 
                     if ($persona) {
-                        // La persona ya existe, no la creamos. Opcional: podrías actualizarla.
-                        // $persona->update($personaData);
                         $existingPersons[] = ['row' => $rowNumber, 'message' => "La persona con identificación {$validatedData['identificacion']} ya existe. Se usó el registro existente."];
                     } else {
-                        // La persona no existe, la creamos.
                         $persona = \App\Models\Persona::create(array_merge(
                             ['nro_documento' => $validatedData['identificacion'], 'complemento' => $validatedData['complemento']],
                             $personaData

@@ -70,13 +70,19 @@ const filteredMunicipios = computed(() => {
     return props.municipios.filter(m => m.departamento_id === form.departamento_id)
 })
 
-type SanitizeMode = 'alphanumeric' | 'letters' | 'numbers'
+type SanitizeMode = 'alphanumeric' | 'letters' | 'numbers' | 'ci'
 const sanitizeInput = (value: string, mode: SanitizeMode = 'alphanumeric') => {
   if (mode === 'letters') {
     return value.replace(/[^A-Za-z\u00C0-\u00FF\s]/g, '')
   }
   if (mode === 'numbers') {
     return value.replace(/[^0-9]/g, '')
+  }
+  if (mode === 'ci') {
+    // Permitir solo letras mayúsculas, números y guion
+    let sanitized = value.replace(/[^A-Za-z0-9-]/g, '')
+    // Convertir letras a mayúsculas
+    return sanitized.toUpperCase()
   }
   return value.replace(/[^0-9A-Za-z\u00C0-\u00FF\s]/g, '')
 }
@@ -181,8 +187,8 @@ function submit() {
                             <div v-if="form.errors.nombres" class="text-sm text-red-500">{{ form.errors.nombres }}</div>
                         </div>
                         <div class="space-y-2">
-                            <Label for="ci">CI</Label>
-                            <Input id="ci" v-model="form.ci" type="text" required @input="handleSanitizedInput('ci', 'numbers', $event)" />
+                            <Label for="ci">Carnet de Identidad</Label>
+                            <Input id="ci" v-model="form.ci" type="text" required @input="handleSanitizedInput('ci', 'ci', $event)" />
                             <div v-if="form.errors.ci" class="text-sm text-red-500">{{ form.errors.ci }}</div>
                         </div>
                         <div class="space-y-2">

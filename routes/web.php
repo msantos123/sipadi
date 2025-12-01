@@ -28,6 +28,7 @@ Route::get('dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::get('/solicitudes/{solicitud}/download', [SolicitudController::class, 'download'])->name('solicitudes.download');
+Route::get('/solicitudes/{solicitud}/pdf', [SolicitudController::class, 'viewPdf'])->name('solicitudes.pdf');
 
 Route::get('usuarios/index', [UsuariosController::class, 'index'])->middleware(['auth', 'verified'])->name('usuarios.index');
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -85,6 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('settings/roles', RoleController::class)->except(['show'])->name('index', 'roles.index');
 
     Route::get('/solicitud/create', [SolicitudController::class, 'create'])->name('solicitud.create');
+    Route::post('/solicitudes/search', [SolicitudController::class, 'search'])->name('solicitudes.search');
     Route::post('/solicitudes', [SolicitudController::class, 'store'])->name('solicitudes.store');
     Route::get('/solicitudes', [SolicitudController::class, 'index'])->name('solicitudes.index');
 
@@ -104,6 +106,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rutas para Búsqueda Avanzada
     Route::get('/busqueda', [BusquedaController::class, 'index'])->name('busqueda.index');
     Route::get('/busqueda/search', [BusquedaController::class, 'search'])->name('busqueda.search');
+    Route::get('/busqueda/export-excel', [BusquedaController::class, 'exportExcel'])->name('busqueda.export-excel');
 
     // Rutas para Gestión de Ubicaciones
     Route::get('/ubicaciones', [UbicacionesController::class, 'index'])->name('ubicaciones.index');
