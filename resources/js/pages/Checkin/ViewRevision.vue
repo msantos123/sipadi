@@ -59,7 +59,15 @@ const filteredLotes = computed(() => {
   if (!selectedDate.value) {
     return lotes.value;
   }
-  return lotes.value.filter(lote => lote.fecha_lote.startsWith(selectedDate.value));
+  
+  return lotes.value.filter(lote => {
+    // Siempre mostrar lotes EN_REVISION_GAD independientemente de la fecha
+    if (lote.estado_lote === 'EN_REVISION_GAD') {
+      return true;
+    }
+    // Para otros estados, filtrar por fecha
+    return lote.fecha_lote.startsWith(selectedDate.value);
+  });
 });
 
 // Computed para contar lotes seleccionables (solo EN_REVISION_GAD)
